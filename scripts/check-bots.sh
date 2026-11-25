@@ -13,8 +13,9 @@
 #   @openai/codex and @anthropic-ai/claude-code and runs `codex --version`
 #   and `claude --version`, and amaru.yaml defines an agent with driver
 #   codex and one with driver claude;
-# - web.listen is 0.0.0.0:<port>, the Containerfile EXPOSEs that port, and
-#   no two bots share it, so they can all run on one host.
+# - the web interface listens on 0.0.0.0:8765 (web.listen) and the
+#   Containerfile EXPOSEs 8765: every bot uses the same container port, and
+#   the host port is picked at run time with -p.
 #
 # It checks the layout only. CI builds the images, and Amaru Light checks
 # every key when the daemon starts. Needs yq v4 (github.com/mikefarah/yq).
@@ -34,10 +35,9 @@ fail() {
     errors=$((errors + 1))
 }
 
-ports=$(mktemp)
-trap 'rm -f "$ports"' EXIT
-
+WEB_PORT=8765
 found=0
+ok=''
 for dir in bots/*/; do
     [ -d "$dir" ] || continue
     found=1
@@ -110,21 +110,11 @@ for dir in bots/*/; do
         || fail "$project: no checks are defined"
 
     listen=$("$YQ" '.web.listen // ""' "$daemon")
-    case "$listen" in
-        '')
-            fail "$daemon: web.listen is missing; give each bot its own port" ;;
-        0.0.0.0:*)
-            port=${listen#0.0.0.0:}
-            grep -Eq "^EXPOSE[[:space:]]+$port([[:space:]]|\$)" "$cf" \
-                || fail "$dir: web port $port is not EXPOSEd in the Containerfile"
-            other=$(awk -v p="$port" '$1 == p { print $2 }' "$ports")
-            if [ -n "$other" ]; then
-                fail "$dir: web port $port is already used by bots/$other"
-            fi
-            echo "$port $name" >> "$ports" ;;
-        *)
-            fail "$daemon: web.listen must be 0.0.0.0:<port> to be reachable from the host" ;;
-    esac
+    [ "$listen" = "0.0.0.0:$WEB_PORT" ] \
+        || fail "$daemon: web.listen must be 0.0.0.0:$WEB_PORT (got '$listen'); pick the host port with -p"
+    grep -Eq "^EXPOSE[[:space:]]+$WEB_PORT([[:space:]]|\$)" "$cf" \
+        || fail "$cf: must EXPOSE $WEB_PORT"
+    ok="$ok $name"
 done
 
 [ "$found" -eq 1 ] || fail "bots/: no bots found"
@@ -133,6 +123,6 @@ if [ "$errors" -gt 0 ]; then
     echo "$errors problem(s) found" >&2
     exit 1
 fi
-sort -n "$ports" | while read -r port name; do
-    printf 'ok  %-24s port %s\n' "$name" "$port"
+for name in $ok; do
+    echo "ok  $name"
 done

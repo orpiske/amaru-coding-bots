@@ -1,7 +1,8 @@
 # Running a bot
 
-Replace `<name>` with the bot's folder under `bots/`, `<port>` with its
-web port (`web.listen` in its `amaru.yaml`, and the table in the README),
+Replace `<name>` with the bot's folder under `bots/`, `<port>` with the host
+port for its web interface (the bot always listens on 8765 inside the
+container; give each bot on one host its own host port),
 `<bot>` with your bot account and `<group>` with your quay organization or
 user. If you forked this repository, first replace the owner's accounts as
 [Using this repository for your own bots](../README.md#using-this-repository-for-your-own-bots)
@@ -45,7 +46,7 @@ to the bot's `amaru.yaml` or `project.yaml`.
 export GH_TOKEN=<bot token>
 podman run -d --name amaru-light-<name> \
   -e GH_TOKEN \
-  -p 127.0.0.1:<port>:<port> \
+  -p 127.0.0.1:<port>:8765 \
   -v amaru-light-<name>:/home/mini-amaru:U \
   quay.io/<group>/amaru-light-<name>:latest
 ```

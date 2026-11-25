@@ -15,7 +15,7 @@ agent: codex
 step_timeout: 45m
 
 checks:
-  # The same check as CI: the layout of every bot folder, the ports and
+  # The same check as CI: the layout of every bot folder, the web port and
   # the scripts. The image build itself runs in CI on the pull request,
   # and `fix_ci` sends a failing build back to the agent.
   - name: check

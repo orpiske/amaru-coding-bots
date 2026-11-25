@@ -10,7 +10,7 @@ merges.
 - Checks: `pr-rust` (the wasm actions with cargo-component, build, tests,
   the OpenAPI snapshot, clippy; 60m) and `pr-ui` (yarn format check and
   tests in `ui/admin`; 15m), as Wanaku's PR build runs them
-- Web interface: port 8766
+- Web interface: port 8765 in the container (publish it on any host port)
 - Toolchain: Rust 1.96 with the `wasm32-wasip1` target, cargo-component
   0.21.1, Node.js 22, Yarn 1.22.22. Keep these in step with Wanaku CI.
 

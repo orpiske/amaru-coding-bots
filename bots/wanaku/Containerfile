@@ -7,7 +7,7 @@
 #   make build BOT=wanaku
 # or pull quay.io/orpiske/amaru-light-wanaku:latest.
 # Run with GH_TOKEN already set in the shell:
-#   podman run -d --name amaru-light-wanaku -e GH_TOKEN -p 127.0.0.1:8766:8766 \
+#   podman run -d --name amaru-light-wanaku -e GH_TOKEN -p 127.0.0.1:8766:8765 \
 #     -v amaru-light-wanaku:/home/mini-amaru:U quay.io/orpiske/amaru-light-wanaku:latest
 # Sign in once:
 #   podman exec -it amaru-light-wanaku codex login --device-auth
@@ -65,4 +65,4 @@ RUN /app/bin/amaru --version && git --version && gh --version && ripwire --versi
     && make --version && pkg-config --modversion openssl
 
 # The web interface listens on this port (web.listen in amaru.yaml).
-EXPOSE 8766
+EXPOSE 8765

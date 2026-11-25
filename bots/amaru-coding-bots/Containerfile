@@ -17,7 +17,7 @@
 # Run it with the bot's token and one home volume:
 #   export GH_TOKEN=<orp-bot token>
 #   podman run -d --name amaru-light-amaru-coding-bots -e GH_TOKEN \
-#     -p 127.0.0.1:8768:8768 \
+#     -p 127.0.0.1:8768:8765 \
 #     -v amaru-light-amaru-coding-bots:/home/mini-amaru:U \
 #     localhost/amaru-light-amaru-coding-bots:dev
 #
@@ -64,4 +64,4 @@ RUN make --version | head -n 1 \
     && /app/bin/amaru --version
 
 # The web interface listens on this port (web.listen in amaru.yaml).
-EXPOSE 8768
+EXPOSE 8765
