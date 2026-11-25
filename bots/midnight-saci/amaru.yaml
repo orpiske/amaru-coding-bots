@@ -1,0 +1,27 @@
+# Daemon settings for the midnight-saci coding bot. GH_TOKEN holds
+# orp-bot's token.
+state_dir: /home/mini-amaru/amaru   # inside the home volume, next to the agent logins
+poll_interval: 60s
+max_parallel: 1
+gh: gh
+bot_login: orp-bot
+
+web:
+  listen: 0.0.0.0:8765
+
+agents:
+  codex:
+    driver: codex
+    command: codex
+    # The container is the sandbox, so Codex runs without approvals and can
+    # reach the network for the build.
+    args: [--dangerously-bypass-approvals-and-sandbox]
+  # Every bot image has Claude Code too. To use it, set `agent: claude`
+  # in project.yaml.
+  claude:
+    driver: claude
+    command: claude
+    args: [--permission-mode, bypassPermissions]
+
+projects:
+  - project.yaml

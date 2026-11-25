@@ -12,6 +12,7 @@ own bot, see [below](#using-this-repository-for-your-own-bots).
 | Bot | Repository | Agent | Image |
 | --- | --- | --- | --- |
 | [amaru-coding-bots](bots/amaru-coding-bots) | orpiske/amaru-coding-bots | Codex | `quay.io/orpiske/amaru-light-amaru-coding-bots` |
+| [midnight-saci](bots/midnight-saci) | orpiske/midnight-saci | Codex | `quay.io/orpiske/amaru-light-midnight-saci` |
 | [wanaku](bots/wanaku) | wanaku-ai/wanaku | Codex | `quay.io/orpiske/amaru-light-wanaku` |
 
 Every image has both Codex and Claude Code, and every `amaru.yaml` defines
