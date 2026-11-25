@@ -1,0 +1,67 @@
+# The coding bot for orpiske/amaru-coding-bots itself: orp-bot picks issues
+# labelled `needs-implementation` (usually "add a bot for <project>"), writes
+# the new bots/<name>/ folder with Codex, runs `make check`, pushes to its
+# fork orp-bot/amaru-coding-bots and opens a pull request. CI then builds the
+# new image for amd64 and arm64 on that pull request.
+#
+# The image needs no compiler: the bot writes Containerfiles and YAML, and
+# reads the target project (cloned with git or gh) to find its toolchain. It
+# has Node.js 22 for the agent CLIs, Codex, Claude Code, and Python with
+# PyYAML for `make check`. It has no container runtime, so it cannot build
+# the images it writes; CI does that.
+#
+# Build it from the repository root, with this folder as the context:
+#   make build BOT=amaru-coding-bots
+# or pull quay.io/orpiske/amaru-light-amaru-coding-bots:latest.
+#
+# Run it with the bot's token and one home volume:
+#   export GH_TOKEN=<orp-bot token>
+#   podman run -d --name amaru-light-amaru-coding-bots -e GH_TOKEN \
+#     -p 127.0.0.1:8768:8768 \
+#     -v amaru-light-amaru-coding-bots:/home/mini-amaru:U \
+#     localhost/amaru-light-amaru-coding-bots:dev
+#
+# Then sign Codex in once, on the web interface's Agents page or with:
+#   podman exec -it amaru-light-amaru-coding-bots codex login --device-auth
+
+ARG BASE_IMAGE=ghcr.io/amaru-oss/amaru-light:latest
+
+FROM docker.io/library/node:22-trixie-slim AS node
+
+FROM ${BASE_IMAGE}
+
+USER root
+# make and Python with PyYAML run `make check`; ShellCheck lints the
+# scripts. bubblewrap is Codex's sandbox, which it wants installed even when
+# bypassed.
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        curl make findutils tar gzip procps-ng bubblewrap \
+        python3 python3-pyyaml ShellCheck \
+    && microdnf clean all
+
+# Node.js 22 from the official image, then the agent CLIs.
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && npm install -g --no-audit --no-fund @openai/codex @anthropic-ai/claude-code \
+    && npm cache clean --force
+
+# Git over HTTPS gets its credentials from gh, which reads GH_TOKEN. This is
+# what `gh auth setup-git` writes, set here so no login step is necessary.
+RUN git config --system credential.https://github.com.helper '' \
+    && git config --system --add credential.https://github.com.helper '!/usr/bin/gh auth git-credential'
+
+# The daemon settings, at the path the base image's default command reads.
+COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/
+
+USER mini-amaru
+RUN make --version | head -n 1 \
+    && python3 -c 'import yaml; print("PyYAML", yaml.__version__)' \
+    && shellcheck --version | head -n 2 \
+    && git --version && gh --version | head -n 1 \
+    && node --version && npm --version && codex --version && claude --version \
+    && /app/bin/amaru --version
+
+# The web interface listens on this port (web.listen in amaru.yaml).
+EXPOSE 8768

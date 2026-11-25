@@ -1,0 +1,63 @@
+name: New coding bot
+description: Ask the bot to add a coding bot for another project.
+title: "Add a coding bot for <owner/repo>"
+labels: [needs-implementation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The `needs-implementation` label is added for you, so orp-bot picks
+        this issue up and opens a pull request with the new `bots/<name>/`
+        folder. Leave a field empty to use the default in AGENTS.md.
+  - type: input
+    id: repo
+    attributes:
+      label: Repository
+      description: The project the bot works on, as owner/name.
+      placeholder: wanaku-ai/wanaku
+    validations:
+      required: true
+  - type: input
+    id: base-branch
+    attributes:
+      label: Base branch
+      placeholder: main
+  - type: dropdown
+    id: setup
+    attributes:
+      label: Setup
+      options:
+        - Fork (orp-bot pushes to orp-bot/<repo>)
+        - Direct push (orp-bot has write access)
+  - type: input
+    id: label
+    attributes:
+      label: Intake label
+      description: Issues with this label on the target repository are picked up.
+      placeholder: needs-implementation
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options:
+        - Codex
+        - Claude Code
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks
+      description: >-
+        The commands that validate a change, if you know them. Otherwise the
+        bot finds them in the project's CI.
+      render: sh
+  - type: input
+    id: reviewers
+    attributes:
+      label: Reviewers
+      description: GitHub logins whose reviews the bot acts on.
+      placeholder: orpiske
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Toolchain quirks, things the container cannot run, an existing config to start from.
