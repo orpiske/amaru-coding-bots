@@ -19,12 +19,12 @@ agents:
     # to inspect it, so Codex runs without approvals and without its own
     # sandbox.
     args: [--dangerously-bypass-approvals-and-sandbox]
-  # Claude Code is installed too. To use it, add it here and set
-  # `agent: claude` in project.yaml, then rebuild the image.
-  # claude:
-  #   driver: claude
-  #   command: claude
-  #   args: [--permission-mode, bypassPermissions]
+  # Every bot image has Claude Code too. To use it, set `agent: claude`
+  # in project.yaml.
+  claude:
+    driver: claude
+    command: claude
+    args: [--permission-mode, bypassPermissions]
 
 projects:
   - project.yaml

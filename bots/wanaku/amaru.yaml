@@ -12,5 +12,10 @@ agents:
     command: codex
     args: [--dangerously-bypass-approvals-and-sandbox]
     login_with_key: [login, --with-api-key]
+  # Also installed; set `agent: claude` in project.yaml to use it.
+  claude:
+    driver: claude
+    command: claude
+    args: [--permission-mode, bypassPermissions]
 
 projects: [project.yaml]

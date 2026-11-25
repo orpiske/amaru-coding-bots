@@ -40,7 +40,10 @@ follow the docs and say so in the pull request.
    - folder name: the repository name, lowercase (`bots/<name>/`);
    - the same `bot_login`, fork setup with fork `<bot login>/<repo name>`;
    - intake `labels: [needs-implementation]`, no assignee;
-   - agent `codex`, with `args: [--dangerously-bypass-approvals-and-sandbox]`;
+   - both agents defined in `amaru.yaml`: `codex` (driver codex,
+     `args: [--dangerously-bypass-approvals-and-sandbox]`) and `claude`
+     (driver claude, `args: [--permission-mode, bypassPermissions]`), with
+     `agent: codex` in `project.yaml` unless the issue picks Claude Code;
    - the same `review.reviewers`, `review.self: same_agent`;
    - `state_dir: /home/mini-amaru/amaru`, `max_parallel: 1`,
      `poll_interval: 60s`, `branch_prefix: feat/`.
@@ -58,7 +61,9 @@ follow the docs and say so in the pull request.
    - `Containerfile`: `ARG BASE_IMAGE=ghcr.io/amaru-oss/amaru-light:latest`,
      final stage `FROM ${BASE_IMAGE}`; the toolchain with `microdnf` (the
      base is Fedora Minimal) or from official images with `COPY --from=`;
-     Node.js 22 and the agent CLIs; the gh Git credential helper; toolchains
+     Node.js 22 and both agent CLIs, `@openai/codex` and
+     `@anthropic-ai/claude-code` (every image has both, whichever agent the
+     project uses); the gh Git credential helper; toolchains
      under /opt owned by `mini-amaru`; `COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/`;
      `USER mini-amaru`; a final RUN that prints every tool's version; and
      `EXPOSE <port>`. A header comment with the build, run and login
