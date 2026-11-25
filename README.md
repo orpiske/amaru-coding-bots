@@ -14,6 +14,10 @@ own bot, see [below](#using-this-repository-for-your-own-bots).
 | [amaru-coding-bots](bots/amaru-coding-bots) | orpiske/amaru-coding-bots | Codex | 8768 | `quay.io/orpiske/amaru-light-amaru-coding-bots` |
 | [wanaku](bots/wanaku) | wanaku-ai/wanaku | Codex | 8766 | `quay.io/orpiske/amaru-light-wanaku` |
 
+Every image has both Codex and Claude Code, and every `amaru.yaml` defines
+both agents; the Agent column is the one `project.yaml` uses. Switch a bot
+by setting `agent: claude` (or `codex`) in its `project.yaml`.
+
 Every bot has its own web port so that they can all run on one host. The
 amaru-light bot, which lives in its own repository
 ([coding-bot/](https://github.com/amaru-oss/amaru-light/tree/main/coding-bot)),
@@ -24,7 +28,7 @@ uses 8767. `make check` fails if two bots here share a port.
 ```
 bots/<name>/
   Containerfile   FROM ${BASE_IMAGE} (ghcr.io/amaru-oss/amaru-light:latest)
-  amaru.yaml      daemon settings: state dir, web port, agents
+  amaru.yaml      daemon settings: state dir, web port, agents (codex and claude)
   project.yaml    the project: repo, fork, intake label, checks, review
   README.md       what the bot does and what its image cannot run
 ```

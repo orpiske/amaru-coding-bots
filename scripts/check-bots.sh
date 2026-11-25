@@ -9,6 +9,10 @@
 # - amaru.yaml and project.yaml parse, amaru.yaml has a state_dir and lists
 #   project.yaml, the project's agent is defined in amaru.yaml, and the
 #   project has a repo, an intake label or assignee, and checks;
+# - every image has both agent CLIs: the Containerfile installs
+#   @openai/codex and @anthropic-ai/claude-code and runs `codex --version`
+#   and `claude --version`, and amaru.yaml defines an agent with driver
+#   codex and one with driver claude;
 # - web.listen is 0.0.0.0:<port>, the Containerfile EXPOSEs that port, and
 #   no two bots share it, so they can all run on one host.
 #
@@ -60,6 +64,15 @@ for dir in bots/*/; do
         || fail "$cf: the final stage must be 'FROM \${BASE_IMAGE}'"
     grep -Eq '^COPY .*amaru\.yaml.*project\.yaml.*[[:space:]]/config/[[:space:]]*$' "$cf" \
         || fail "$cf: must COPY amaru.yaml project.yaml /config/"
+    # Every bot image carries both agent CLIs, whichever one the project uses.
+    for pkg in @openai/codex @anthropic-ai/claude-code; do
+        grep -q "$pkg" "$cf" \
+            || fail "$cf: must install $pkg (every image has Codex and Claude Code)"
+    done
+    for cli in codex claude; do
+        grep -Eq "(^|[^[:alnum:]_-])$cli --version" "$cf" \
+            || fail "$cf: the version check must run '$cli --version'"
+    done
 
     daemon=$dir/amaru.yaml
     project=$dir/project.yaml
@@ -76,6 +89,11 @@ for dir in bots/*/; do
         || fail "$daemon: state_dir is missing"
     "$YQ" -e '.projects[] | select(. == "project.yaml")' "$daemon" >/dev/null 2>&1 \
         || fail "$daemon: projects must list project.yaml"
+
+    for driver in codex claude; do
+        "$YQ" -e ".agents[] | select(.driver == \"$driver\")" "$daemon" >/dev/null 2>&1 \
+            || fail "$daemon: needs an agent with driver $driver (every bot defines Codex and Claude Code)"
+    done
 
     agent=$("$YQ" '.agent // ""' "$project")
     if [ -z "$agent" ]; then
