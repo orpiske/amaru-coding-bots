@@ -9,6 +9,6 @@ the changed images on that pull request. It never merges.
 - Repository: `orpiske/amaru-coding-bots` (fork `orp-bot/amaru-coding-bots`)
 - Agent: Codex
 - Checks: `make check`
-- Web interface: port 8768
+- Web interface: port 8765 in the container (publish it on any host port)
 
 To run it, see [Running a bot](../../docs/running-a-bot.md).

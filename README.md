@@ -9,19 +9,19 @@ own bot, see [below](#using-this-repository-for-your-own-bots).
 
 ## Bots
 
-| Bot | Repository | Agent | Port | Image |
-| --- | --- | --- | --- | --- |
-| [amaru-coding-bots](bots/amaru-coding-bots) | orpiske/amaru-coding-bots | Codex | 8768 | `quay.io/orpiske/amaru-light-amaru-coding-bots` |
-| [wanaku](bots/wanaku) | wanaku-ai/wanaku | Codex | 8766 | `quay.io/orpiske/amaru-light-wanaku` |
+| Bot | Repository | Agent | Image |
+| --- | --- | --- | --- |
+| [amaru-coding-bots](bots/amaru-coding-bots) | orpiske/amaru-coding-bots | Codex | `quay.io/orpiske/amaru-light-amaru-coding-bots` |
+| [wanaku](bots/wanaku) | wanaku-ai/wanaku | Codex | `quay.io/orpiske/amaru-light-wanaku` |
 
 Every image has both Codex and Claude Code, and every `amaru.yaml` defines
 both agents; the Agent column is the one `project.yaml` uses. Switch a bot
 by setting `agent: claude` (or `codex`) in its `project.yaml`.
 
-Every bot has its own web port so that they can all run on one host. The
-amaru-light bot, which lives in its own repository
-([coding-bot/](https://github.com/amaru-oss/amaru-light/tree/main/coding-bot)),
-uses 8767. `make check` fails if two bots here share a port.
+Every bot listens on 8765 inside its own container (`web.listen:
+0.0.0.0:8765`, `EXPOSE 8765`), and `make check` enforces it. To run
+several bots on one host, give each its own host port with
+`-p 127.0.0.1:<host port>:8765`.
 
 ## Layout
 
