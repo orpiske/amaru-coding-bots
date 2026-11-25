@@ -3,14 +3,16 @@
 Coding bots for the projects I work on. Each bot is an
 [Amaru Light](https://github.com/amaru-oss/amaru-light) daemon in its own
 container image, built on the Amaru Light base image with the toolchain its
-project needs. It works on that project's issues as `orp-bot` and opens
-pull requests; it never merges.
+project needs. It works on that project's issues as my bot account,
+`orp-bot`, and opens pull requests; it never merges. To run them as your
+own bot, see [below](#using-this-repository-for-your-own-bots).
 
 ## Bots
 
 | Bot | Repository | Agent | Port | Image |
 | --- | --- | --- | --- | --- |
 | [amaru-coding-bots](bots/amaru-coding-bots) | orpiske/amaru-coding-bots | Codex | 8768 | `quay.io/orpiske/amaru-light-amaru-coding-bots` |
+| [wanaku](bots/wanaku) | wanaku-ai/wanaku | Codex | 8766 | `quay.io/orpiske/amaru-light-wanaku` |
 
 Every bot has its own web port so that they can all run on one host. The
 amaru-light bot, which lives in its own repository
@@ -61,6 +63,32 @@ It uses the same settings as wanaku-ai/wanaku:
 
 To build one bot locally: `make build BOT=<name>` (Podman; add
 `RUNTIME=docker` for Docker).
+
+## Using this repository for your own bots
+
+<!-- make-it-yours: keep -->
+The bots here run as **my** bot account, `orp-bot`, ask **me** (`orpiske`)
+for reviews and push images to `quay.io/orpiske`. They will not work for
+you as they are: `orp-bot` is mine, and its token is not yours to have.
+Create your own bot account (a separate GitHub account, not your own),
+fork or copy this repository, and run:
+
+```sh
+scripts/make-it-yours.sh --bot <your-bot> --owner <you> [--group <quay org>] [--dry-run]
+```
+
+It replaces `orp-bot` (the `bot_login`, the forks `orp-bot/<repo>`),
+`orpiske` (the reviewers), `orpiske/amaru-coding-bots` (this repository's
+own bot) and `quay.io/orpiske` (the images and the `CONTAINER_GROUP`
+default) in every file, then lists what is left to do: delete the bots for
+projects you do not work on, fork the target repositories as your bot,
+create the `needs-implementation` label, set the quay secrets and give your
+bot its token as [Running a bot](docs/running-a-bot.md) says.
+
+The self-hosting bot takes the bot login and reviewers from
+`bots/amaru-coding-bots/` for every new bot it writes, so once that folder
+is yours, new bots are too.
+<!-- make-it-yours: end -->
 
 ## Running a bot
 

@@ -69,8 +69,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install PyYAML
-        run: python3 -m pip install --quiet pyyaml
       - name: make check
         run: make check
 

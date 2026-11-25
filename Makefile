@@ -1,10 +1,12 @@
 # `make check` is what CI and the coding bot run to validate a change.
+# It needs yq v4 (https://github.com/mikefarah/yq) and, if installed,
+# runs ShellCheck on the scripts.
 
 .PHONY: check build
 
 check:
-	python3 scripts/check-bots.py
-	sh -n scripts/changed-bots.sh
+	scripts/check-bots.sh
+	@for s in scripts/*.sh; do sh -n "$$s" || exit 1; done
 	@if command -v shellcheck >/dev/null; then shellcheck scripts/*.sh; fi
 
 # Build one bot locally: make build BOT=wanaku [RUNTIME=docker]

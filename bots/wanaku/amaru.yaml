@@ -1,0 +1,16 @@
+state_dir: /home/mini-amaru/amaru
+bot_login: orp-bot
+poll_interval: 60s
+max_parallel: 1
+
+web:
+  listen: 0.0.0.0:8766
+
+agents:
+  codex:
+    driver: codex
+    command: codex
+    args: [--dangerously-bypass-approvals-and-sandbox]
+    login: [login, --with-api-key]
+
+projects: [project.yaml]

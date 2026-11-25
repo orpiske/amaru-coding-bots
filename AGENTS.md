@@ -32,12 +32,16 @@ follow the docs and say so in the pull request.
 
 1. Read the issue. It names the repository, and may name the base branch,
    the setup (fork or direct push), the intake label, the agent, the check
-   command and the reviewers. Use these defaults for what it leaves out:
+   command and the reviewers. Use these defaults for what it leaves out.
+   The bot account and the reviewers belong to whoever owns this copy of
+   the repository: take them from this repository's own bot,
+   `bots/amaru-coding-bots/amaru.yaml` (`bot_login`) and `project.yaml`
+   (`review.reviewers`), never from another bot's folder or an example.
    - folder name: the repository name, lowercase (`bots/<name>/`);
-   - bot login `orp-bot`, fork setup with fork `orp-bot/<repo name>`;
+   - the same `bot_login`, fork setup with fork `<bot login>/<repo name>`;
    - intake `labels: [needs-implementation]`, no assignee;
    - agent `codex`, with `args: [--dangerously-bypass-approvals-and-sandbox]`;
-   - `review.reviewers: [orpiske]`, `review.self: same_agent`;
+   - the same `review.reviewers`, `review.self: same_agent`;
    - `state_dir: /home/mini-amaru/amaru`, `max_parallel: 1`,
      `poll_interval: 60s`, `branch_prefix: feat/`.
 2. Inspect the target project: `git clone --depth 1 https://github.com/<owner>/<repo> /tmp/<repo>`.
@@ -74,7 +78,7 @@ follow the docs and say so in the pull request.
    Containerfile.
 7. In the pull request, list the toolchain versions you pinned and where
    they come from, the check command, the port, and what the owner still
-   has to do: create the fork `orp-bot/<repo>`, give the bot a role if
+   has to do: create the fork `<bot login>/<repo>`, give the bot a role if
    intake should use an assignee, and create the intake label on the
    target repository.
 
