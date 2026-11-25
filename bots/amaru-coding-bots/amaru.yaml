@@ -6,10 +6,7 @@ max_parallel: 1
 gh: gh
 bot_login: orp-bot
 web:
-  # Every bot in this repository has its own port, so they can all run on
-  # one host: see the table in the top-level README.md. `make check` fails
-  # if two bots share one. Publish it with -p 127.0.0.1:8768:8768.
-  listen: 0.0.0.0:8768
+  listen: 0.0.0.0:8765
 
 agents:
   codex:
