@@ -11,6 +11,6 @@ agents:
     driver: codex
     command: codex
     args: [--dangerously-bypass-approvals-and-sandbox]
-    login: [login, --with-api-key]
+    login_with_key: [login, --with-api-key]
 
 projects: [project.yaml]
