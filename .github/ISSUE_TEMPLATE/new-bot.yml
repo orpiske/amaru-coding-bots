@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        The `needs-implementation` label is added for you, so orp-bot picks
+        The `needs-implementation` label is added for you, so this repository's bot picks
         this issue up and opens a pull request with the new `bots/<name>/`
         folder. Leave a field empty to use the default in AGENTS.md.
   - type: input
@@ -27,8 +27,8 @@ body:
     attributes:
       label: Setup
       options:
-        - Fork (orp-bot pushes to orp-bot/<repo>)
-        - Direct push (orp-bot has write access)
+        - Fork (the bot pushes to its own fork of the repository)
+        - Direct push (the bot has write access)
   - type: input
     id: label
     attributes:
@@ -55,7 +55,7 @@ body:
     attributes:
       label: Reviewers
       description: GitHub logins whose reviews the bot acts on.
-      placeholder: orpiske
+      placeholder: your-github-login
   - type: textarea
     id: notes
     attributes:

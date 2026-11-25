@@ -1,0 +1,43 @@
+repo: wanaku-ai/wanaku
+base_branch: main
+fork: orp-bot/wanaku
+branch_prefix: amaru/
+
+intake:
+  labels: [needs-implementation]
+
+agent: codex
+step_timeout: 45m
+
+checks:
+  - name: pr-rust
+    run: >-
+      mkdir -p ui/admin/dist actions/dist &&
+      (cd actions/safety-review && cargo component build --release --locked) &&
+      cp actions/safety-review/target/wasm32-wasip1/release/safety_review_action.wasm actions/dist/ &&
+      (cd actions/assembly-filter && cargo component build --release --locked) &&
+      cp actions/assembly-filter/target/wasm32-wasip1/release/assembly_filter_action.wasm actions/dist/ &&
+      (cd actions/opa-allow && cargo component build --release --locked) &&
+      cp actions/opa-allow/target/wasm32-wasip1/release/opa_allow_action.wasm actions/dist/ &&
+      cargo build --verbose &&
+      cargo build --verbose --no-default-features -p wanaku-server &&
+      cargo test --verbose &&
+      cargo test --locked -p wanaku-server --no-default-features --example wanaku-openapi &&
+      cargo openapi --check ui/admin/openapi.json &&
+      cargo test --verbose -p wanaku-feature-evaluator --lib --test example_actions -- --ignored &&
+      cargo clippy --all-targets &&
+      cargo clippy --all-targets --no-default-features -p wanaku-server
+    timeout: 60m
+  - name: pr-ui
+    run: cd ui/admin && yarn install --frozen-lockfile && yarn run format:check && yarn run test
+    timeout: 15m
+max_fix_rounds: 3
+
+review:
+  self: same_agent
+  respond: true
+  reviewers: [orpiske]
+  fix_ci: true
+
+workspace:
+  keep_blocked: 7d

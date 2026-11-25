@@ -1,12 +1,16 @@
 # Running a bot
 
-Replace `<name>` with the bot's folder under `bots/`, and `<port>` with its
-web port (`web.listen` in its `amaru.yaml`, and the table in the README).
+Replace `<name>` with the bot's folder under `bots/`, `<port>` with its
+web port (`web.listen` in its `amaru.yaml`, and the table in the README),
+`<bot>` with your bot account and `<group>` with your quay organization or
+user. If you forked this repository, first replace the owner's accounts as
+[Using this repository for your own bots](../README.md#using-this-repository-for-your-own-bots)
+says.
 
 ## Before the first run
 
-- The bot account `orp-bot`. For the fork setup, its fork of the target
-  repository, `orp-bot/<repo>` (fork it while signed in as the bot).
+- A GitHub account for the bot, separate from yours. For the fork setup,
+  its fork of the target repository, `<bot>/<repo>` (fork it while signed in as the bot).
 - A token for the bot. For a fork onto a repository someone else owns, a
   classic token with `public_repo` (`repo` if the repository is private): a
   fine-grained token cannot open the pull request upstream. For direct
@@ -23,7 +27,7 @@ web port (`web.listen` in its `amaru.yaml`, and the table in the README).
 Pull it (both architectures are published):
 
 ```sh
-podman pull quay.io/orpiske/amaru-light-<name>:latest
+podman pull quay.io/<group>/amaru-light-<name>:latest
 ```
 
 or build it from a checkout of this repository:
@@ -38,12 +42,12 @@ to the bot's `amaru.yaml` or `project.yaml`.
 ## Run
 
 ```sh
-export GH_TOKEN=<orp-bot token>
+export GH_TOKEN=<bot token>
 podman run -d --name amaru-light-<name> \
   -e GH_TOKEN \
   -p 127.0.0.1:<port>:<port> \
   -v amaru-light-<name>:/home/mini-amaru:U \
-  quay.io/orpiske/amaru-light-<name>:latest
+  quay.io/<group>/amaru-light-<name>:latest
 ```
 
 `-e GH_TOKEN` with no value copies the token from the shell, so it is not
@@ -65,8 +69,8 @@ podman exec -it amaru-light-<name> claude auth login
 Optionally give the bot's commits its identity:
 
 ```sh
-podman exec amaru-light-<name> git config --global user.name orp-bot
-podman exec amaru-light-<name> git config --global user.email <id>+orp-bot@users.noreply.github.com
+podman exec amaru-light-<name> git config --global user.name <bot>
+podman exec amaru-light-<name> git config --global user.email <id>+<bot>@users.noreply.github.com
 ```
 
 ## Verify and give it work
