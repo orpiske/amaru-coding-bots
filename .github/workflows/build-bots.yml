@@ -1,0 +1,185 @@
+name: Build bots
+
+# Builds the image of every coding bot under bots/ for linux/amd64 and
+# linux/arm64, each on a native runner, and publishes a multi-arch manifest
+# to the container registry (quay.io by default).
+#
+# - Pull requests build the bots they change, and never push.
+# - Pushes to main (and to ci-* branches) build and push the bots they
+#   change. A change outside bots/ that can affect every image (this
+#   workflow, the detection script) rebuilds all of them.
+# - Run it by hand (workflow_dispatch) to rebuild all bots, or the ones you
+#   name, for example after a new base image is published.
+#
+# Settings, the same names as wanaku-ai/wanaku uses:
+#   vars.CONTAINER_REGISTRY   registry host       (default quay.io)
+#   vars.CONTAINER_GROUP      organization/user   (default orpiske)
+#   secrets.QUAY_USERNAME     registry login (a robot account works)
+#   secrets.QUAY_PASSWORD     registry password or token
+# Without the secrets the images are built but not pushed.
+#
+# Images: $CONTAINER_REGISTRY/$CONTAINER_GROUP/amaru-light-<bot>:<tag>, where
+# <tag> is `latest` on main and the branch name elsewhere, plus the commit
+# SHA. The architecture images are pushed as <tag>-x86_64 and <tag>-aarch64,
+# then combined into the manifest list <tag>, as in wanaku.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bots:
+        description: Bots to build, separated by spaces (empty builds all)
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+      - ci-*
+    paths-ignore:
+      - '**.md'
+      - docs/**
+      - LICENSE
+      - .github/ISSUE_TEMPLATE/**
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - docs/**
+      - LICENSE
+      - .github/ISSUE_TEMPLATE/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-bots-${{ github.ref }}
+  # Never cancel a publishing run halfway between the arch images and the
+  # manifest; pull request runs can be replaced by newer ones.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CONTAINER_REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'quay.io' }}
+  CONTAINER_GROUP: ${{ vars.CONTAINER_GROUP || 'orpiske' }}
+  # main pushes latest; any other branch (ci-*) pushes its own name.
+  IMAGE_TAG: ${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
+  IMAGE_PREFIX: amaru-light-
+  PUBLISH: ${{ github.event_name != 'pull_request' }}
+
+jobs:
+  check:
+    name: Check the bot folders
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PyYAML
+        run: python3 -m pip install --quiet pyyaml
+      - name: make check
+        run: make check
+
+  detect:
+    name: Find the bots to build
+    runs-on: ubuntu-latest
+    outputs:
+      bots: ${{ steps.detect.outputs.bots }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Detect changed bots
+        id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_BOTS: ${{ inputs.bots }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          case "$EVENT" in
+            workflow_dispatch)
+              if [ -n "$INPUT_BOTS" ]; then
+                # shellcheck disable=SC2086 # one argument per bot name
+                bots=$(scripts/changed-bots.sh --only $INPUT_BOTS)
+              else
+                bots=$(scripts/changed-bots.sh --all)
+              fi ;;
+            pull_request) bots=$(scripts/changed-bots.sh "$PR_BASE" "$GITHUB_SHA") ;;
+            *)            bots=$(scripts/changed-bots.sh "$BEFORE" "$GITHUB_SHA") ;;
+          esac
+          echo "Bots to build: $bots"
+          echo "bots=$bots" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.bot }} (${{ matrix.arch }})
+    needs: [check, detect]
+    if: needs.detect.outputs.bots != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        bot: ${{ fromJSON(needs.detect.outputs.bots) }}
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.os }}
+    env:
+      QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+      QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+      BOT: ${{ matrix.bot }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the image
+        run: |
+          docker build -f "bots/$BOT/Containerfile" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            -t "localhost/$IMAGE_PREFIX$BOT:ci" "bots/$BOT"
+
+      - name: Login to Container Registry
+        if: env.PUBLISH == 'true' && env.QUAY_USERNAME != '' && env.QUAY_PASSWORD != ''
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.CONTAINER_REGISTRY }}
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Push the architecture image
+        if: env.PUBLISH == 'true' && env.QUAY_USERNAME != '' && env.QUAY_PASSWORD != ''
+        run: |
+          image="$CONTAINER_REGISTRY/$CONTAINER_GROUP/$IMAGE_PREFIX$BOT:$IMAGE_TAG-$ARCH"
+          docker tag "localhost/$IMAGE_PREFIX$BOT:ci" "$image"
+          docker push "$image"
+
+  createManifests:
+    name: Publish ${{ matrix.bot }} manifest
+    needs: [detect, build]
+    if: >-
+      github.event_name != 'pull_request' &&
+      needs.detect.outputs.bots != '[]' &&
+      needs.build.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        bot: ${{ fromJSON(needs.detect.outputs.bots) }}
+    runs-on: ubuntu-latest
+    env:
+      QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+      QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+      BOT: ${{ matrix.bot }}
+    steps:
+      - name: Login to Container Registry
+        if: env.QUAY_USERNAME != '' && env.QUAY_PASSWORD != ''
+        run: |
+          echo "$QUAY_PASSWORD" | podman login \
+            --username "$QUAY_USERNAME" --password-stdin \
+            ${{ env.CONTAINER_REGISTRY }}
+
+      - name: Create and push the multi-arch manifest
+        if: env.QUAY_USERNAME != '' && env.QUAY_PASSWORD != ''
+        run: |
+          image="$CONTAINER_REGISTRY/$CONTAINER_GROUP/$IMAGE_PREFIX$BOT"
+          podman manifest create "$image:$IMAGE_TAG" \
+            "docker://$image:$IMAGE_TAG-x86_64" \
+            "docker://$image:$IMAGE_TAG-aarch64"
+          podman manifest push --all "$image:$IMAGE_TAG" "docker://$image:$IMAGE_TAG"
+          podman manifest push --all "$image:$IMAGE_TAG" "docker://$image:$GITHUB_SHA"

@@ -1,0 +1,34 @@
+# The bot repository working on itself (fork setup). An issue labelled
+# `needs-implementation` asks for a new bot (see the "New coding bot" issue
+# template) or a change to an existing one; AGENTS.md tells the agent how.
+repo: orpiske/amaru-coding-bots
+base_branch: main
+fork: orp-bot/amaru-coding-bots     # push to the bot's fork, open PRs upstream
+branch_prefix: feat/                # branches are feat/<issue>-<slug>
+
+intake:
+  # Add `assignee: orp-bot` once orp-bot is a collaborator here: GitHub
+  # assigns only people who have access to the repository.
+  labels: [needs-implementation]
+
+agent: codex
+step_timeout: 45m
+
+checks:
+  # The same check as CI: the layout of every bot folder, the ports and
+  # the scripts. The image build itself runs in CI on the pull request,
+  # and `fix_ci` sends a failing build back to the agent.
+  - name: check
+    run: make check
+    timeout: 5m
+max_fix_rounds: 3
+
+review:
+  self: same_agent              # the ticket's own session reviews its diff first
+  respond: true
+  reviewers: [orpiske]
+  max_rounds: 5
+  fix_ci: true
+
+workspace:
+  keep_blocked: 7d
