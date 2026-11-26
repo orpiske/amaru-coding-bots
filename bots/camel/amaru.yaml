@@ -1,0 +1,21 @@
+# GH_TOKEN holds orp-bot's token.
+state_dir: /home/mini-amaru/amaru
+poll_interval: 60s
+max_parallel: 1
+gh: gh
+bot_login: orp-bot
+web:
+  listen: 0.0.0.0:8765
+
+agents:
+  codex:
+    driver: codex
+    command: codex
+    args: [--dangerously-bypass-approvals-and-sandbox]
+  claude:
+    driver: claude
+    command: claude
+    args: [--permission-mode, bypassPermissions]
+
+projects:
+  - project.yaml

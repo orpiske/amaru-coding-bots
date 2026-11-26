@@ -78,6 +78,10 @@ fails() { ! "$BIN" "$@" >/dev/null 2>&1; }
 has() { printf "%s\n" "$1" | grep -q -- "$2"; }
 not_in() { ! grep -q -- "$1" "$2"; }
 
+camel_project=$("${YQ:-yq}" '[.repo, .base_branch, .fork, .agent] | @tsv' bots/camel/project.yaml)
+check "Camel targets upstream main from the bot fork with Claude Code" \
+    test "$camel_project" = "$(printf 'apache/camel\tmain\torp-bot/camel\tclaude')"
+
 check "run without a token fails" fails run midnight-saci
 
 cat > "$AMARU_BOT_CONFIG" <<CFG
