@@ -24,7 +24,8 @@ by setting `agent: claude` (or `codex`) in its `project.yaml`.
 Every bot listens on 8765 inside its own container (`web.listen:
 0.0.0.0:8765`, `EXPOSE 8765`), and `make check` enforces it. To run
 several bots on one host, give each its own host port with
-`-p 127.0.0.1:<host port>:8765`.
+`-p 127.0.0.1:<host port>:8765`, or let `amaru-bot` pick and remember
+the ports for you.
 
 ## Layout
 
@@ -99,4 +100,11 @@ is yours, new bots are too.
 
 ## Running a bot
 
-See [Running a bot](docs/running-a-bot.md).
+```sh
+make install           # the amaru-bot CLI, in ~/.local/bin
+amaru-bot init         # the bot token, in ~/.config/amaru-bot/config
+amaru-bot run midnight-saci
+```
+
+See [Running a bot](docs/running-a-bot.md) for the rest, and for the
+`podman run` it wraps.

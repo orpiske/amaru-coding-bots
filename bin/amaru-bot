@@ -1,0 +1,519 @@
+#!/bin/sh
+# amaru-bot: runs the coding bots of this repository with Podman (or Docker).
+#
+#   amaru-bot init                     write a config file and ask for the token
+#   amaru-bot run <bot> [options]      start a bot (it gets its own host port)
+#       --port <port>    use this host port (and keep it for the bot)
+#       --image <image>  use this image instead of the configured one
+#       --pull           pull the image before it starts
+#   amaru-bot stop <bot>... | --all    stop bots (the volume and port are kept)
+#   amaru-bot restart <bot> [options]  stop, then run with the same options
+#   amaru-bot logs <bot> [-f] [...]    the container's logs (options go to logs)
+#   amaru-bot status [<bot>]           the running bots, or one bot in detail
+#   amaru-bot list                     every known bot, its port and its state
+#   amaru-bot amaru <bot> <args>...    run `amaru -c /config/amaru.yaml <args>`
+#                                      in the bot (doctor, claim, status, ...)
+#   amaru-bot forget <bot>             release the bot's host port
+#   amaru-bot config                   show the settings (never the token)
+#
+# A bot named <bot> runs as the container amaru-light-<bot>, with the volume
+# amaru-light-<bot> on /home/mini-amaru, from the image `image` in the
+# config file with {bot} replaced. Each bot keeps the host port it got the
+# first time, so its address does not change; ports are recorded in
+# $XDG_STATE_HOME/amaru-bot/ports.
+#
+# The config file is $AMARU_BOT_CONFIG, else
+# $XDG_CONFIG_HOME/amaru-bot/config (~/.config/amaru-bot/config). It holds
+# `key = value` lines:
+#
+#   gh_token = <the bot's GitHub token>
+#   gh_token_command = pass show my-bot    # instead of gh_token
+#   image = quay.io/orpiske/amaru-light-{bot}:latest
+#   runtime = podman                       # or docker
+#   bind = 127.0.0.1                       # host address of the web ports
+#   first_port = 8766                      # the first port to hand out
+#
+# Any key can be set for one bot by prefixing it with the bot's name, such
+# as `midnight-saci.image = localhost/amaru-light-midnight-saci:dev`.
+# AMARU_BOT_GH_TOKEN overrides the token. GH_TOKEN in your shell is never
+# used: it is likely your own token, not the bot's.
+#
+# The token reaches the container through the environment of the runtime
+# (`-e GH_TOKEN` with no value), never through its command line, and this
+# script never prints it.
+set -eu
+
+PROG=amaru-bot
+CONTAINER_PORT=8765
+DEFAULT_IMAGE='quay.io/orpiske/amaru-light-{bot}:latest'
+DEFAULT_FIRST_PORT=8766
+
+CONFIG=${AMARU_BOT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/amaru-bot/config}
+STATE_DIR=${AMARU_BOT_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/amaru-bot}
+PORTS=$STATE_DIR/ports
+
+die() {
+    echo "$PROG: $*" >&2
+    exit 1
+}
+
+usage() {
+    # The commands: the header from its second paragraph to the next blank line.
+    awk 'NR <= 3 { next } /^#( |$)/ { if ($0 == "#") exit; sub(/^# /, ""); print; next } { exit }' "$0" >&2
+    echo "Run '$PROG --help' for the config file and the details." >&2
+    exit 2
+}
+
+show_help() {
+    awk 'NR == 1 { next } /^#( |$)/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
+    exit 0
+}
+
+# --- config ---------------------------------------------------------------
+
+# cfg_raw <key>: the value of <key> in the config file, or nothing.
+# The file is read, never sourced.
+cfg_raw() {
+    [ -f "$CONFIG" ] || return 0
+    awk -v key="$1" '
+        /^[[:space:]]*(#|$)/ { next }
+        {
+            line = $0
+            eq = index(line, "=")
+            if (eq == 0) next
+            k = substr(line, 1, eq - 1)
+            v = substr(line, eq + 1)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", k)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+            if (k != key) next
+            if (v ~ /^".*"$/ || v ~ /^\047.*\047$/) v = substr(v, 2, length(v) - 2)
+            val = v
+        }
+        END { if (val != "") print val }
+    ' "$CONFIG"
+}
+
+# cfg <key> [default]: the bot's own value (<bot>.<key>), else the global
+# one, else the default.
+cfg() {
+    v=''
+    if [ -n "${BOT:-}" ]; then
+        v=$(cfg_raw "$BOT.$1")
+    fi
+    [ -n "$v" ] || v=$(cfg_raw "$1")
+    [ -n "$v" ] || v=${2:-}
+    printf '%s\n' "$v"
+}
+
+load_runtime() {
+    RUNTIME=$(cfg runtime podman)
+    command -v "$RUNTIME" >/dev/null 2>&1 || die "'$RUNTIME' is not installed (set runtime in $CONFIG)"
+    BIND=$(cfg bind 127.0.0.1)
+}
+
+check_config_mode() {
+    [ -f "$CONFIG" ] || return 0
+    # ls -l works the same on GNU and BSD; stat does not.
+    # shellcheck disable=SC2012
+    perms=$(ls -l "$CONFIG" | cut -c5-10)
+    case "$perms" in
+        ------) ;;
+        *) echo "$PROG: warning: $CONFIG can be read by others; run: chmod 600 '$CONFIG'" >&2 ;;
+    esac
+}
+
+# Sets TOKEN, or fails. Never prints it.
+load_token() {
+    check_config_mode
+    TOKEN=${AMARU_BOT_GH_TOKEN:-}
+    if [ -z "$TOKEN" ]; then
+        TOKEN=$(cfg gh_token)
+    fi
+    if [ -z "$TOKEN" ]; then
+        token_cmd=$(cfg gh_token_command)
+        if [ -n "$token_cmd" ]; then
+            TOKEN=$(sh -c "$token_cmd" </dev/null) || die "gh_token_command failed"
+            TOKEN=$(printf '%s' "$TOKEN" | head -n 1 | tr -d '[:space:]')
+        fi
+    fi
+    [ -n "$TOKEN" ] || die "no GitHub token for $BOT: set gh_token in $CONFIG (or run: $PROG init)"
+}
+
+# --- names ----------------------------------------------------------------
+
+set_bot() {
+    [ -n "${1:-}" ] || usage
+    printf '%s\n' "$1" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$' \
+        || die "'$1' is not a bot name (lowercase letters, digits and dashes)"
+    BOT=$1
+    NAME=amaru-light-$BOT
+}
+
+image_for_bot() {
+    img=${IMAGE_OVERRIDE:-$(cfg image "$DEFAULT_IMAGE")}
+    # {bot} -> the bot's name; the name has no characters sed treats specially.
+    printf '%s\n' "$img" | sed "s/{bot}/$BOT/g"
+}
+
+# --- container state ------------------------------------------------------
+
+# The container's state (running, exited, ...), or nothing if there is none.
+container_state() {
+    "$RUNTIME" container inspect --format '{{.State.Status}}' "$NAME" 2>/dev/null || true
+}
+
+container_label() {
+    "$RUNTIME" container inspect --format "{{index .Config.Labels \"$1\"}}" "$NAME" 2>/dev/null || true
+}
+
+# --- ports ----------------------------------------------------------------
+
+lock() {
+    mkdir -p "$STATE_DIR"
+    i=0
+    until mkdir "$STATE_DIR/lock" 2>/dev/null; do
+        i=$((i + 1))
+        [ "$i" -lt 50 ] || die "$STATE_DIR/lock is held; remove it if no other $PROG is running"
+        sleep 0.1 2>/dev/null || sleep 1
+    done
+    trap 'rmdir "$STATE_DIR/lock" 2>/dev/null || true' EXIT INT TERM
+}
+
+unlock() {
+    rmdir "$STATE_DIR/lock" 2>/dev/null || true
+    trap - EXIT INT TERM
+}
+
+# port_of <bot>: the port recorded for the bot, or nothing.
+port_of() {
+    [ -f "$PORTS" ] || return 0
+    awk -v b="$1" '$1 == b { print $2; exit }' "$PORTS"
+}
+
+# owner_of <port>: the bot the port is recorded for, or nothing.
+owner_of() {
+    [ -f "$PORTS" ] || return 0
+    awk -v p="$1" '$2 == p { print $1; exit }' "$PORTS"
+}
+
+record_port() {
+    mkdir -p "$STATE_DIR"
+    tmp=$PORTS.tmp.$$
+    { [ -f "$PORTS" ] && awk -v b="$1" '$1 != b' "$PORTS"; printf '%s %s\n' "$1" "$2"; } \
+        | sort > "$tmp"
+    mv "$tmp" "$PORTS"
+}
+
+forget_port() {
+    [ -f "$PORTS" ] || return 0
+    tmp=$PORTS.tmp.$$
+    awk -v b="$1" '$1 != b' "$PORTS" > "$tmp"
+    mv "$tmp" "$PORTS"
+}
+
+# Whether something on this host listens on the TCP port. Best effort: with
+# neither ss nor lsof it says no, and the runtime reports the clash.
+port_busy() {
+    if command -v ss >/dev/null 2>&1; then
+        ss -Hltn 2>/dev/null | awk '{ print $4 }' | grep -Eq "[:.]$1\$"
+    elif command -v lsof >/dev/null 2>&1; then
+        lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+    else
+        return 1
+    fi
+}
+
+valid_port() {
+    printf '%s\n' "$1" | grep -Eq '^[0-9]+$' && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
+}
+
+# Picks the host port for $BOT and sets PORT. Call with the lock held.
+pick_port() {
+    if [ -n "${PORT_OVERRIDE:-}" ]; then
+        valid_port "$PORT_OVERRIDE" || die "--port: '$PORT_OVERRIDE' is not a port"
+        owner=$(owner_of "$PORT_OVERRIDE")
+        if [ -n "$owner" ] && [ "$owner" != "$BOT" ]; then
+            die "port $PORT_OVERRIDE belongs to $owner (run: $PROG forget $owner)"
+        fi
+        PORT=$PORT_OVERRIDE
+        port_busy "$PORT" && die "port $PORT is in use on this host"
+        return 0
+    fi
+    PORT=$(port_of "$BOT")
+    if [ -n "$PORT" ]; then
+        port_busy "$PORT" && die "port $PORT of $BOT is in use on this host; pick another with --port"
+        return 0
+    fi
+    first=$(cfg first_port "$DEFAULT_FIRST_PORT")
+    valid_port "$first" || die "first_port: '$first' is not a port"
+    p=$first
+    while [ "$p" -le 65535 ]; do
+        if [ "$p" -ne "$CONTAINER_PORT" ] && [ -z "$(owner_of "$p")" ] && ! port_busy "$p"; then
+            PORT=$p
+            return 0
+        fi
+        p=$((p + 1))
+    done
+    die "no free port from $first"
+}
+
+# --- commands -------------------------------------------------------------
+
+cmd_init() {
+    mkdir -p "$(dirname "$CONFIG")"
+    if [ -f "$CONFIG" ]; then
+        die "$CONFIG already exists; edit it instead"
+    fi
+    token=''
+    if [ -t 0 ]; then
+        printf 'GitHub token of the bot account (not shown; empty to set it later): ' >&2
+        stty -echo
+        trap 'stty echo' EXIT INT TERM
+        IFS= read -r token || true
+        stty echo
+        trap - EXIT INT TERM
+        echo >&2
+    fi
+    old_umask=$(umask)
+    umask 077
+    {
+        echo "# amaru-bot settings. See: amaru-bot --help"
+        if [ -n "$token" ]; then
+            printf 'gh_token = %s\n' "$token"
+        else
+            echo "# gh_token = <the bot's GitHub token>"
+        fi
+        echo "# gh_token_command = pass show my-bot"
+        echo "image = $DEFAULT_IMAGE"
+        echo "# Local builds (make build BOT=<name>):"
+        echo "# image = localhost/amaru-light-{bot}:dev"
+        echo "runtime = podman"
+        echo "bind = 127.0.0.1"
+        echo "first_port = $DEFAULT_FIRST_PORT"
+    } > "$CONFIG"
+    umask "$old_umask"
+    chmod 600 "$CONFIG"
+    echo "Wrote $CONFIG"
+}
+
+# Parses run options into PORT_OVERRIDE, IMAGE_OVERRIDE and PULL.
+parse_run_options() {
+    PORT_OVERRIDE='' IMAGE_OVERRIDE='' PULL=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --port) [ $# -ge 2 ] || usage; PORT_OVERRIDE=$2; shift 2 ;;
+            --port=*) PORT_OVERRIDE=${1#--port=}; shift ;;
+            --image) [ $# -ge 2 ] || usage; IMAGE_OVERRIDE=$2; shift 2 ;;
+            --image=*) IMAGE_OVERRIDE=${1#--image=}; shift ;;
+            --pull) PULL=1; shift ;;
+            *) echo "$PROG: unknown option: $1" >&2; usage ;;
+        esac
+    done
+}
+
+cmd_run() {
+    set_bot "${1:-}"
+    shift
+    parse_run_options "$@"
+    load_runtime
+
+    state=$(container_state)
+    case "$state" in
+        '') ;;
+        running)
+            echo "$BOT is already running on http://$BIND:$(container_label amaru-bot.port)"
+            return 0 ;;
+        *)
+            [ -n "$(container_label amaru-bot.bot)" ] \
+                || die "a container named $NAME exists ($state) and was not started by $PROG; remove it first"
+            "$RUNTIME" rm "$NAME" >/dev/null ;;
+    esac
+
+    image=$(image_for_bot)
+    load_token
+
+    lock
+    pick_port
+    record_port "$BOT" "$PORT"
+    unlock
+
+    volume="$NAME:/home/mini-amaru"
+    case "$(basename "$RUNTIME")" in
+        podman*) volume="$volume:U" ;;
+    esac
+
+    if [ "$PULL" -eq 1 ]; then
+        "$RUNTIME" pull "$image" >/dev/null || die "could not pull $image"
+    fi
+
+    # GH_TOKEN is set for the runtime only, and `-e GH_TOKEN` copies it from
+    # there: the token is not in any command line.
+    if ! GH_TOKEN=$TOKEN "$RUNTIME" run --rm -d \
+        --name "$NAME" \
+        --label "amaru-bot.bot=$BOT" \
+        --label "amaru-bot.port=$PORT" \
+        -p "$BIND:$PORT:$CONTAINER_PORT" \
+        -e GH_TOKEN \
+        -v "$volume" \
+        "$image" >/dev/null; then
+        die "could not start $BOT from $image"
+    fi
+    echo "Started $BOT on http://$BIND:$PORT ($image)"
+}
+
+cmd_stop() {
+    [ $# -gt 0 ] || usage
+    load_runtime
+    if [ "$1" = --all ]; then
+        bots=$("$RUNTIME" ps --filter label=amaru-bot.bot --format '{{.Names}}' | sed -n 's/^amaru-light-//p')
+        [ -n "$bots" ] || { echo "No bot is running"; return 0; }
+        # shellcheck disable=SC2086 # one name per word
+        set -- $bots
+    fi
+    for b in "$@"; do
+        set_bot "$b"
+        if [ "$(container_state)" != running ]; then
+            echo "$BOT is not running"
+            continue
+        fi
+        "$RUNTIME" stop "$NAME" >/dev/null
+        echo "Stopped $BOT"
+    done
+}
+
+cmd_restart() {
+    set_bot "${1:-}"
+    bot=$1
+    shift
+    cmd_stop "$bot" >/dev/null
+    # With --rm the runtime removes the container once it stops.
+    load_runtime
+    i=0
+    while [ -n "$(container_state)" ] && [ "$i" -lt 30 ]; do
+        sleep 1
+        i=$((i + 1))
+    done
+    cmd_run "$bot" "$@"
+}
+
+cmd_logs() {
+    set_bot "${1:-}"
+    shift
+    load_runtime
+    [ -n "$(container_state)" ] || die "$BOT is not running"
+    exec "$RUNTIME" logs "$@" "$NAME"
+}
+
+cmd_amaru() {
+    set_bot "${1:-}"
+    shift
+    [ $# -gt 0 ] || usage
+    load_runtime
+    [ "$(container_state)" = running ] || die "$BOT is not running"
+    if [ -t 0 ] && [ -t 1 ]; then
+        exec "$RUNTIME" exec -it "$NAME" /app/bin/amaru -c /config/amaru.yaml "$@"
+    fi
+    exec "$RUNTIME" exec "$NAME" /app/bin/amaru -c /config/amaru.yaml "$@"
+}
+
+cmd_status() {
+    load_runtime
+    if [ $# -gt 0 ]; then
+        set_bot "$1"
+        state=$(container_state)
+        port=$(port_of "$BOT")
+        echo "bot:       $BOT"
+        echo "container: $NAME (${state:-none})"
+        if [ "$state" = running ]; then
+            echo "url:       http://$BIND:$(container_label amaru-bot.port)"
+            "$RUNTIME" container inspect --format \
+                'image:     {{.Config.Image}}
+started:   {{.State.StartedAt}}' "$NAME"
+        else
+            echo "port:      ${port:-none}"
+            echo "image:     $(image_for_bot)"
+        fi
+        echo "volume:    $NAME"
+        return 0
+    fi
+    running=$("$RUNTIME" ps --filter label=amaru-bot.bot --format '{{.Names}}' | sed -n 's/^amaru-light-//p' | sort)
+    if [ -z "$running" ]; then
+        echo "No bot is running"
+        return 0
+    fi
+    printf '%-32s %-28s %s\n' BOT URL IMAGE
+    for b in $running; do
+        set_bot "$b"
+        printf '%-32s %-28s %s\n' "$BOT" "http://$BIND:$(container_label amaru-bot.port)" \
+            "$("$RUNTIME" container inspect --format '{{.Config.Image}}' "$NAME" 2>/dev/null)"
+    done
+}
+
+# The bots this checkout defines, when the script runs from one.
+repo_bots() {
+    dir=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd) || return 0
+    for f in "$dir"/bots/*/Containerfile; do
+        [ -f "$f" ] || continue
+        basename "$(dirname "$f")"
+    done
+}
+
+cmd_list() {
+    load_runtime
+    bots=$({ repo_bots; [ -f "$PORTS" ] && awk '{ print $1 }' "$PORTS"; } | sort -u)
+    [ -n "$bots" ] || { echo "No bot is known yet; start one with: $PROG run <bot>"; return 0; }
+    printf '%-32s %-6s %s\n' BOT PORT STATE
+    for b in $bots; do
+        set_bot "$b"
+        state=$(container_state)
+        port=$(port_of "$BOT")
+        printf '%-32s %-6s %s\n' "$BOT" "${port:--}" "${state:-stopped}"
+    done
+}
+
+cmd_forget() {
+    set_bot "${1:-}"
+    load_runtime
+    [ "$(container_state)" != running ] || die "$BOT is running; stop it first"
+    lock
+    forget_port "$BOT"
+    unlock
+    echo "Released the port of $BOT (its volume $NAME is kept)"
+}
+
+cmd_config() {
+    echo "config:     $CONFIG$([ -f "$CONFIG" ] || echo ' (missing)')"
+    echo "ports:      $PORTS"
+    echo "runtime:    $(cfg runtime podman)"
+    echo "image:      $(cfg image "$DEFAULT_IMAGE")"
+    echo "bind:       $(cfg bind 127.0.0.1)"
+    echo "first_port: $(cfg first_port "$DEFAULT_FIRST_PORT")"
+    if [ -n "${AMARU_BOT_GH_TOKEN:-}" ]; then
+        echo "gh_token:   set (AMARU_BOT_GH_TOKEN)"
+    elif [ -n "$(cfg gh_token)" ]; then
+        echo "gh_token:   set"
+    elif [ -n "$(cfg gh_token_command)" ]; then
+        echo "gh_token:   from gh_token_command"
+    else
+        echo "gh_token:   not set"
+    fi
+    check_config_mode
+}
+
+[ $# -gt 0 ] || usage
+cmd=$1
+shift
+case "$cmd" in
+    init) cmd_init ;;
+    run) cmd_run "$@" ;;
+    stop) cmd_stop "$@" ;;
+    restart) cmd_restart "$@" ;;
+    logs) cmd_logs "$@" ;;
+    status) cmd_status "$@" ;;
+    list|ls) cmd_list ;;
+    amaru) cmd_amaru "$@" ;;
+    forget) cmd_forget "$@" ;;
+    config) cmd_config ;;
+    -h|--help|help) show_help ;;
+    *) echo "$PROG: unknown command: $cmd" >&2; usage ;;
+esac
