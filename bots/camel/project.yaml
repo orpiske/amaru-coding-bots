@@ -6,6 +6,11 @@ branch_prefix: feat/
 intake:
   labels: [needs-implementation]
 
+jira:
+  url: https://issues.apache.org/jira
+  project: CAMEL
+  comment: false
+
 agent: claude
 step_timeout: 45m
 
