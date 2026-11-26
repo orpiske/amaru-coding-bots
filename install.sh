@@ -57,8 +57,10 @@ main() {
 
     mkdir -p "$prefix/bin" || fail "could not create $prefix/bin"
     # Write next to the target, then rename, so a running copy is not cut.
-    cp "$tmp" "$dest.new.$$" && chmod 755 "$dest.new.$$" && mv -f "$dest.new.$$" "$dest" \
-        || { rm -f "$dest.new.$$"; fail "could not write $dest"; }
+    if ! { cp "$tmp" "$dest.new.$$" && chmod 755 "$dest.new.$$" && mv -f "$dest.new.$$" "$dest"; }; then
+        rm -f "$dest.new.$$"
+        fail "could not write $dest"
+    fi
     echo "Installed $dest"
 
     case ":$PATH:" in
