@@ -101,7 +101,7 @@ is yours, new bots are too.
 ## Running a bot
 
 ```sh
-make install           # the amaru-bot CLI, in ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/orpiske/amaru-coding-bots/main/install.sh | sh
 amaru-bot init         # the bot token, in ~/.config/amaru-bot/config
 amaru-bot run midnight-saci
 ```

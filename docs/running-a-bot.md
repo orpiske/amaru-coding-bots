@@ -46,8 +46,16 @@ to the bot's `amaru.yaml` or `project.yaml`.
 the bot's token in a config file, gives every bot its own host port and
 keeps that port across runs, so several bots run side by side:
 
+Install it with no clone, into `~/.local/bin` (run it again to update):
+
 ```sh
-make install                 # copies it to ~/.local/bin (PREFIX=... for elsewhere)
+curl -fsSL https://raw.githubusercontent.com/orpiske/amaru-coding-bots/main/install.sh | sh
+# elsewhere, or from a tag: ... | sh -s -- --prefix /usr/local --ref <tag>
+```
+
+or, from a checkout, `make install [PREFIX=...]`. Then:
+
+```sh
 amaru-bot init               # writes ~/.config/amaru-bot/config (mode 600), asks for the token
 amaru-bot run <name>         # Started <name> on http://127.0.0.1:8766 (...)
 amaru-bot list               # every bot, its port and its state
@@ -56,6 +64,9 @@ amaru-bot logs <name> -f
 amaru-bot amaru <name> doctor
 amaru-bot stop <name>        # or --all; the volume and the port are kept
 ```
+
+Installed on its own, `list` shows the bots you have run; run from a
+checkout, it also lists every folder under `bots/`.
 
 The config file holds `key = value` lines; `amaru-bot --help` lists them
 all:
