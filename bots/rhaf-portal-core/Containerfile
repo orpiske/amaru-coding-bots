@@ -1,0 +1,60 @@
+# Coding bot for rhaf-ai/rhaf-portal-core.
+# Build from the repository root:
+#   make build BOT=rhaf-portal-core
+# Run with GH_TOKEN already set in the shell:
+#   podman run -d --name amaru-light-rhaf-portal-core -e GH_TOKEN -p 127.0.0.1:8769:8765 \
+#     -v amaru-light-rhaf-portal-core:/home/mini-amaru:U localhost/amaru-light-rhaf-portal-core:dev
+# Sign in once:
+#   podman exec -it amaru-light-rhaf-portal-core codex login --device-auth
+
+ARG BASE_IMAGE=ghcr.io/amaru-oss/amaru-light:latest
+
+FROM docker.io/library/node:22-trixie-slim AS node
+FROM ${BASE_IMAGE}
+
+# Match rust-toolchain.toml and PR Build in rhaf-ai/rhaf-portal-core.
+ARG RUST_TOOLCHAIN=1.96.0
+
+USER root
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        bubblewrap cmake curl findutils gcc gcc-c++ gzip make \
+        openssl-devel pkgconf-pkg-config procps-ng tar xz \
+    && microdnf clean all
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && npm install -g --no-audit --no-fund "@openai/codex" "@anthropic-ai/claude-code" \
+    && npm cache clean --force
+
+RUN git config --system credential.https://github.com.helper '' \
+    && git config --system --add credential.https://github.com.helper '!/usr/bin/gh auth git-credential'
+
+ENV RUSTUP_HOME=/opt/rustup \
+    CARGO_HOME=/opt/cargo \
+    PATH=/opt/cargo/bin:/usr/local/bin:/usr/bin
+RUN install -d -o mini-amaru -g mini-amaru /opt/rustup /opt/cargo
+
+COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/
+
+USER mini-amaru
+RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \
+    && sh /tmp/rustup-init.sh -y --no-modify-path --profile minimal \
+        --default-toolchain "${RUST_TOOLCHAIN}" --component clippy,rustfmt \
+    && rm /tmp/rustup-init.sh
+
+# Limit debug data and concurrent linking for the Podman VM.
+ENV CARGO_PROFILE_DEV_DEBUG=0 \
+    CARGO_PROFILE_TEST_DEBUG=0 \
+    CARGO_BUILD_JOBS=2
+
+RUN /app/bin/amaru --version && git --version && gh --version && ripwire --version \
+    && rustup --version && rustc --version && cargo --version && cargo clippy --version \
+    && cargo fmt --version \
+    && node --version && npm --version && codex --version && claude --version \
+    && bwrap --version && gcc --version && g++ --version && cmake --version \
+    && make --version && pkg-config --modversion openssl
+
+# The web interface listens on this port (web.listen in amaru.yaml).
+EXPOSE 8765

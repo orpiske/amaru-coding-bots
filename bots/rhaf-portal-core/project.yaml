@@ -1,0 +1,34 @@
+repo: rhaf-ai/rhaf-portal-core
+base_branch: main
+fork: orp-bot/rhaf-portal-core
+branch_prefix: feat/
+
+intake:
+  labels: [needs-implementation]
+
+agent: codex
+step_timeout: 45m
+
+checks:
+  - name: pr-lints
+    run: >-
+      cargo check-workspace-lints &&
+      cargo fmt --all --check &&
+      cargo clippy --workspace --all-targets --locked -- -D warnings
+    timeout: 60m
+  - name: pr-build
+    run: >-
+      cargo build --workspace --locked --verbose &&
+      cargo test --workspace --locked --verbose &&
+      cargo openapi --check crates/rhaf-api/openapi.json
+    timeout: 60m
+max_fix_rounds: 3
+
+review:
+  self: same_agent
+  respond: true
+  reviewers: [orpiske]
+  fix_ci: true
+
+workspace:
+  keep_blocked: 7d
