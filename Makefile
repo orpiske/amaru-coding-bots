@@ -2,15 +2,24 @@
 # It needs yq v4 (https://github.com/mikefarah/yq) and, if installed,
 # runs ShellCheck on the scripts.
 
-.PHONY: check build
+SHELL_SCRIPTS = scripts/*.sh bin/amaru-bot tests/*.sh
+
+.PHONY: check build install
 
 check:
 	scripts/check-bots.sh
-	@for s in scripts/*.sh; do sh -n "$$s" || exit 1; done
-	@if command -v shellcheck >/dev/null; then shellcheck scripts/*.sh; fi
+	@for s in $(SHELL_SCRIPTS); do sh -n "$$s" || exit 1; done
+	@if command -v shellcheck >/dev/null; then shellcheck $(SHELL_SCRIPTS); fi
+	tests/amaru-bot.sh
 
 # Build one bot locally: make build BOT=wanaku [RUNTIME=docker]
 RUNTIME ?= podman
 build:
 	@test -n "$(BOT)" || { echo "usage: make build BOT=<name>"; exit 2; }
 	$(RUNTIME) build -f bots/$(BOT)/Containerfile -t localhost/amaru-light-$(BOT):dev bots/$(BOT)
+
+# Install the amaru-bot CLI: make install [PREFIX=~/.local]
+PREFIX ?= $(HOME)/.local
+install:
+	install -d $(PREFIX)/bin
+	install -m 755 bin/amaru-bot $(PREFIX)/bin/amaru-bot

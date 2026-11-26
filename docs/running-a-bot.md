@@ -40,7 +40,48 @@ make build BOT=<name>        # localhost/amaru-light-<name>:dev
 The settings are copied into the image, so pull or rebuild after a change
 to the bot's `amaru.yaml` or `project.yaml`.
 
-## Run
+## Run with amaru-bot
+
+[`bin/amaru-bot`](../bin/amaru-bot) wraps the `podman run` below. It keeps
+the bot's token in a config file, gives every bot its own host port and
+keeps that port across runs, so several bots run side by side:
+
+```sh
+make install                 # copies it to ~/.local/bin (PREFIX=... for elsewhere)
+amaru-bot init               # writes ~/.config/amaru-bot/config (mode 600), asks for the token
+amaru-bot run <name>         # Started <name> on http://127.0.0.1:8766 (...)
+amaru-bot list               # every bot, its port and its state
+amaru-bot status             # the running bots and their addresses
+amaru-bot logs <name> -f
+amaru-bot amaru <name> doctor
+amaru-bot stop <name>        # or --all; the volume and the port are kept
+```
+
+The config file holds `key = value` lines; `amaru-bot --help` lists them
+all:
+
+```
+gh_token = <bot token>                      # or: gh_token_command = pass show my-bot
+image = quay.io/<group>/amaru-light-{bot}:latest
+runtime = podman                            # or docker
+bind = 127.0.0.1
+first_port = 8766
+```
+
+For images built with `make build`, set
+`image = localhost/amaru-light-{bot}:dev`, or set it for one bot only with
+`<name>.image = ...`; `amaru-bot run <name> --image <image>` overrides it
+once. `--port <port>` picks a host port and keeps it for the bot, and
+`amaru-bot forget <name>` releases it. `amaru-bot run <name> --pull` pulls
+a new image first; `amaru-bot restart <name> --pull` replaces a running bot.
+
+The token goes to the runtime through its environment, never its command
+line, and `amaru-bot` never prints it. It does not read `GH_TOKEN` from your
+shell, which is most likely your own token; set `AMARU_BOT_GH_TOKEN` to
+override the config for one run. Ports are recorded in
+`~/.local/state/amaru-bot/ports`.
+
+## Run by hand
 
 ```sh
 export GH_TOKEN=<bot token>
