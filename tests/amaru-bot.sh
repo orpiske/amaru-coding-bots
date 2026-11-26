@@ -74,8 +74,11 @@ check() { # check <description> <command>...
     if "$@"; then ok "$d"; else bad "$d"; fi
 }
 out() { "$BIN" "$@" 2>&1; }
+fails() { ! "$BIN" "$@" >/dev/null 2>&1; }
+has() { printf "%s\n" "$1" | grep -q -- "$2"; }
+not_in() { ! grep -q -- "$1" "$2"; }
 
-check "run without a token fails" sh -c '! "$0" run midnight-saci >/dev/null 2>&1' "$BIN"
+check "run without a token fails" fails run midnight-saci
 
 cat > "$AMARU_BOT_CONFIG" <<CFG
 # test
@@ -97,13 +100,13 @@ echo 18767 > "$work/busy"
 o=$(out run wanaku)
 check "the next bot skips taken and busy ports and uses its own image" test "$o" = "Started wanaku on http://127.0.0.1:18768 (localhost/amaru-light-wanaku:dev)"
 
-check "--port of another bot is refused" sh -c '! "$0" run rhaf-portal-core --port 18766 >/dev/null 2>&1' "$BIN"
-check "a busy --port is refused" sh -c '! "$0" run rhaf-portal-core --port 18767 >/dev/null 2>&1' "$BIN"
+check "--port of another bot is refused" fails run rhaf-portal-core --port 18766
+check "a busy --port is refused" fails run rhaf-portal-core --port 18767
 o=$(out run rhaf-portal-core --port 19000 --image localhost/x:1)
 check "--port and --image are used" test "$o" = "Started rhaf-portal-core on http://127.0.0.1:19000 (localhost/x:1)"
 
 o=$(out status)
-check "status lists the running bots" sh -c 'printf "%s\n" "$0" | grep -q "^wanaku  *http://127.0.0.1:18768  *localhost/amaru-light-wanaku:dev"' "$o"
+check "status lists the running bots" has "$o" "^wanaku  *http://127.0.0.1:18768  *localhost/amaru-light-wanaku:dev"
 
 o=$(out stop midnight-saci)
 check "stop stops the bot" test "$o" = "Stopped midnight-saci"
@@ -111,21 +114,21 @@ o=$(out run midnight-saci)
 check "a bot keeps its port across runs" test "$o" = "Started midnight-saci on http://127.0.0.1:18766 (quay.io/orpiske/amaru-light-midnight-saci:latest)"
 
 o=$(out list)
-check "list shows ports and states" sh -c 'printf "%s\n" "$0" | grep -q "^rhaf-portal-core  *19000  *running"' "$o"
+check "list shows ports and states" has "$o" "^rhaf-portal-core  *19000  *running"
 
 o=$(out restart wanaku)
 check "restart runs the bot again on its port" test "$o" = "Started wanaku on http://127.0.0.1:18768 (localhost/amaru-light-wanaku:dev)"
 
-check "forget refuses a running bot" sh -c '! "$0" forget wanaku >/dev/null 2>&1' "$BIN"
+check "forget refuses a running bot" fails forget wanaku
 out stop --all >/dev/null
 check "stop --all stops every bot" test -z "$(ls "$work/containers")"
 out forget wanaku >/dev/null
-check "forget releases the port" sh -c '! grep -q "^wanaku " "$0"' "$AMARU_BOT_STATE/ports"
+check "forget releases the port" not_in "^wanaku " "$AMARU_BOT_STATE/ports"
 
-check "a bad bot name is refused" sh -c '! "$0" run "../x" >/dev/null 2>&1' "$BIN"
+check "a bad bot name is refused" fails run "../x"
 
 o=$(out config)
-check "config says the token is set" sh -c 'printf "%s\n" "$0" | grep -qx "gh_token:   set"' "$o"
+check "config says the token is set" has "$o" "^gh_token:   set$"
 
 AMARU_BOT_GH_TOKEN=override-token out run midnight-saci >/dev/null
 check "AMARU_BOT_GH_TOKEN overrides the config" grep -qx "GH_TOKEN=override-token" "$work/env.amaru-light-midnight-saci"
@@ -137,9 +140,9 @@ check "gh_token_command gives the token" grep -qx "GH_TOKEN=cmd-token" "$work/en
 
 chmod 644 "$AMARU_BOT_CONFIG"
 o=$(out config)
-check "a readable config file is warned about" sh -c 'printf "%s\n" "$0" | grep -q "can be read by others"' "$o"
+check "a readable config file is warned about" has "$o" "can be read by others"
 
-check "no token is ever in a command line" sh -c '! grep -q -e "$1" -e override-token -e cmd-token -e personal-token "$0"' "$work/argv" "$TOKEN"
+check "no token is ever in a command line" not_in "$TOKEN\|override-token\|cmd-token\|personal-token" "$work/argv"
 
 if [ "$failures" -ne 0 ]; then
     echo "$failures test(s) failed"
