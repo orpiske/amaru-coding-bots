@@ -1,0 +1,38 @@
+# Amaru Light project settings for orpiske/midnight-saci (fork setup).
+repo: orpiske/midnight-saci
+base_branch: main
+fork: orp-bot/midnight-saci     # push to the bot's fork, open PRs upstream
+branch_prefix: feat/            # branches are feat/<issue>-<slug>
+
+intake:
+  # Add `assignee: orp-bot` once orp-bot is a collaborator there: GitHub
+  # assigns only people who have access to the repository.
+  labels: [needs-implementation]
+
+agent: codex
+step_timeout: 45m
+
+checks:
+  # CI's docs, format, clippy and test jobs (markdownlint and lychee are
+  # left to CI).
+  - name: check
+    run: .github/check-docs.sh && make check
+    timeout: 30m
+  # CI's web job without the browser tests: the API types, type check, unit
+  # tests and build, then the backend serving the built console.
+  - name: web
+    run: >-
+      cd web && npm ci --no-audit --no-fund && npm run check && npm run build &&
+      cd .. && cargo test --locked --package saci-backend --test console
+    timeout: 20m
+max_fix_rounds: 3
+
+review:
+  self: same_agent              # the ticket's own session reviews its diff first
+  respond: true
+  reviewers: [orpiske]
+  max_rounds: 1
+  fix_ci: true
+
+workspace:
+  keep_blocked: 7d
