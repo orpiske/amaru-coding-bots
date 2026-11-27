@@ -26,7 +26,7 @@ RUN git config --system credential.https://github.com.helper '' \
 
 ENV RUSTUP_HOME=/opt/rustup \
     CARGO_HOME=/opt/cargo \
-    PATH=/home/mini-amaru/.local/bin:/opt/cargo/bin:/usr/local/bin:/usr/bin
+    PATH=/opt/cargo/bin:$PATH
 RUN install -d -o mini-amaru -g mini-amaru /opt/rustup /opt/cargo
 
 COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/

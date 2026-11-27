@@ -71,7 +71,8 @@ follow the docs and say so in the pull request.
      no agent CLI: Codex, Claude Code and IBM Bob are installed from the web
      interface's Agents page into the home volume (the base image has
      Node.js and npm for that, and puts `/home/mini-amaru/.local/bin` first
-     on `PATH`; an `ENV PATH=...` must keep it), and `make check` fails on
+     on `PATH`; extend it with `ENV PATH=/opt/.../bin:$PATH` rather than
+     replacing it), and `make check` fails on
      an image that installs one; Node.js only when the project needs it, in
      the version its CI uses; the gh Git credential helper; toolchains
      under /opt owned by `mini-amaru`; `COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/`;
