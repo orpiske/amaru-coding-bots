@@ -7,8 +7,9 @@ never merges.
 
 - Repository: `orpiske/midnight-saci` (fork `orp-bot/midnight-saci`,
   branches `feat/...`)
-- Agent: Codex (Claude Code is installed too; set `agent: claude` in
-  `project.yaml` to switch)
+- Agent: Codex (install it on the Agents page; Claude Code and IBM Bob are
+  defined too, set `agent: claude` or `agent: bob` in `project.yaml` to
+  switch)
 - Checks:
   - `check`: `.github/check-docs.sh && make check` (docs conventions,
     `cargo fmt --check`, clippy with `-D warnings`, `cargo test`; 30m);

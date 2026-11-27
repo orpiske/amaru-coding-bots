@@ -12,7 +12,7 @@ It uses Codex and opens pull requests against `main` from
   compatibility.
 - **Toolchain** uses Eclipse Temurin 21 as specified in
   `.github/workflows/pr-builds.yml` upstream, Maven 3.9.11 to meet the 3.9+
-  requirement in `CONTRIBUTING.md`, and Node.js 22 for Codex and Claude Code.
+  requirement in `CONTRIBUTING.md`. The agent CLIs come from the Agents page.
 - **Scope** covers the Linux Maven build. The image has no container
   runtime for upstream image publishing. Live registration against a
   Wanaku server and release jobs require external services or credentials.

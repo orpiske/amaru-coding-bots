@@ -107,17 +107,24 @@ podman run -d --name amaru-light-<name> \
 in the command line or the history, and the volume never stores it. With
 Docker, drop `:U` and make sure the volume is owned by uid 1000.
 
-The volume holds the daemon state (`/home/mini-amaru/amaru`) and the agent
-login. Keep it when you recreate the container for a new image.
+The volume holds the daemon state (`/home/mini-amaru/amaru`), the agent
+CLIs and their logins. Keep it when you recreate the container for a new image.
 
-## Sign the agent in
+## Install and sign the agent in
 
-Once, on the web interface's Agents page (`http://127.0.0.1:<port>`), or:
+The images do not ship the agent CLIs. Once, on the web interface's
+Agents page (`http://127.0.0.1:<port>`), press **Install** for the agent
+the bot uses: it runs `npm install --global <package>` into `~/.local` on
+the home volume, then the agent's `setup` steps. Then sign it in there, or:
 
 ```sh
 podman exec -it amaru-light-<name> codex login --device-auth
 podman exec -it amaru-light-<name> claude auth login
 ```
+
+**Update** on the same page upgrades the CLI. Until the agent is installed
+and signed in, the bot takes no work. For IBM Bob, run the container with
+your own key as `-e BOB_API_KEY`; installing it accepts IBM's license.
 
 Optionally give the bot's commits its identity:
 

@@ -9,10 +9,11 @@
 # - amaru.yaml and project.yaml parse, amaru.yaml has a state_dir and lists
 #   project.yaml, the project's agent is defined in amaru.yaml, and the
 #   project has a repo, an intake label or assignee, and checks;
-# - every image has both agent CLIs: the Containerfile installs
-#   @openai/codex and @anthropic-ai/claude-code and runs `codex --version`
-#   and `claude --version`, and amaru.yaml defines an agent with driver
-#   codex and one with driver claude;
+# - no image ships an agent CLI: the Containerfile does not install
+#   @openai/codex, @anthropic-ai/claude-code or @ibm/bob (they are
+#   installed from the web interface's Agents page, into the home volume),
+#   and amaru.yaml defines an agent with driver codex, one with driver
+#   claude and one with driver bob;
 # - the web interface listens on 0.0.0.0:8765 (web.listen) and the
 #   Containerfile EXPOSEs 8765: every bot uses the same container port, and
 #   the host port is picked at run time with -p.
@@ -64,14 +65,13 @@ for dir in bots/*/; do
         || fail "$cf: the final stage must be 'FROM \${BASE_IMAGE}'"
     grep -Eq '^COPY .*amaru\.yaml.*project\.yaml.*[[:space:]]/config/[[:space:]]*$' "$cf" \
         || fail "$cf: must COPY amaru.yaml project.yaml /config/"
-    # Every bot image carries both agent CLIs, whichever one the project uses.
-    for pkg in @openai/codex @anthropic-ai/claude-code; do
-        grep -q "$pkg" "$cf" \
-            || fail "$cf: must install $pkg (every image has Codex and Claude Code)"
-    done
-    for cli in codex claude; do
-        grep -Eq "(^|[^[:alnum:]_-])$cli --version" "$cf" \
-            || fail "$cf: the version check must run '$cli --version'"
+    # No image ships an agent CLI: their licenses differ, and IBM Bob's
+    # grants no right to redistribute it. They are installed from the
+    # web interface's Agents page instead.
+    for pkg in @openai/codex @anthropic-ai/claude-code @ibm/bob; do
+        if grep -q "$pkg" "$cf"; then
+            fail "$cf: must not install $pkg (agent CLIs are installed from the Agents page)"
+        fi
     done
 
     daemon=$dir/amaru.yaml
@@ -90,9 +90,9 @@ for dir in bots/*/; do
     "$YQ" -e '.projects[] | select(. == "project.yaml")' "$daemon" >/dev/null 2>&1 \
         || fail "$daemon: projects must list project.yaml"
 
-    for driver in codex claude; do
+    for driver in codex claude bob; do
         "$YQ" -e ".agents[] | select(.driver == \"$driver\")" "$daemon" >/dev/null 2>&1 \
-            || fail "$daemon: needs an agent with driver $driver (every bot defines Codex and Claude Code)"
+            || fail "$daemon: needs an agent with driver $driver (every bot defines Codex, Claude Code and IBM Bob)"
     done
 
     agent=$("$YQ" '.agent // ""' "$project")
