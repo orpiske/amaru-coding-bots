@@ -10,6 +10,7 @@ agents:
   codex:
     driver: codex
     command: codex
+    instructions: agent-instructions.md
     args: [--dangerously-bypass-approvals-and-sandbox]
     login_with_key: [login, --with-api-key]
     # The AI Agents OSS Helper plugin, installed into the home volume at
@@ -22,6 +23,7 @@ agents:
   claude:
     driver: claude
     command: claude
+    instructions: agent-instructions.md
     args: [--permission-mode, bypassPermissions]
     setup:
       - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
@@ -32,6 +34,7 @@ agents:
   bob:
     driver: bob
     command: bob
+    instructions: agent-instructions.md
     args: [--accept-license]
 
 projects: [project.yaml]

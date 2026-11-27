@@ -29,7 +29,7 @@ ENV JAVA_HOME=/opt/java/openjdk \
     MAVEN_HOME=/opt/maven \
     PATH=/opt/java/openjdk/bin:/opt/maven/bin:$PATH
 
-COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/
+COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/
 
 USER mini-amaru
 RUN /app/bin/amaru --version && git --version && gh --version && ripwire --version \

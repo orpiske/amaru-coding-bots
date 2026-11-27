@@ -44,7 +44,7 @@ RUN git config --system credential.https://github.com.helper '' \
     && git config --system --add credential.https://github.com.helper '!/usr/bin/gh auth git-credential'
 
 # The daemon settings, at the path the base image's default command reads.
-COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/
+COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/
 
 USER mini-amaru
 RUN make --version | head -n 1 \

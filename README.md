@@ -45,6 +45,7 @@ bots/<name>/
   amaru.yaml      daemon settings: state dir, web port, agents (codex, claude and bob)
   project.yaml    the project: repo, fork, intake label, checks, review
   README.md       what the bot does and what its image cannot run
+  agent-instructions.md  the agents' user-wide CLAUDE.md / AGENTS.md
 ```
 
 ## Agent plugins and instructions
@@ -57,20 +58,25 @@ container starts, and right after the agent is installed from the Agents
 page; `podman logs amaru-light-<name>` shows a `setup` line per
 step. Each step must be safe to repeat. Add more the same way.
 
-To give an agent standing instructions for every ticket (a user-wide
-`CLAUDE.md` or `AGENTS.md`, on top of the target repository's own), put
-the file in the bot's folder, add it to the `COPY ... /config/` line of
-the Containerfile, and name it in the agent's `instructions` key:
+Every bot also gives its agents the same standing instructions for every
+ticket, on top of the target repository's own AGENTS.md or CLAUDE.md:
+`agent-instructions.md` in the bot's folder. The Containerfile copies it
+to `/config/`, and each agent names it in its `instructions` key, so the
+daemon installs it at each start as the agent's user-wide file:
 
 ```yaml
 agents:
   claude:
-    instructions: claude-instructions.md   # becomes ~/.claude/CLAUDE.md
+    instructions: agent-instructions.md   # becomes ~/.claude/CLAUDE.md
   codex:
-    instructions: codex-instructions.md    # becomes ~/.codex/AGENTS.md
+    instructions: agent-instructions.md   # becomes ~/.codex/AGENTS.md
   bob:
-    instructions: bob-instructions.md      # becomes ~/.bob/rules/amaru.md
+    instructions: agent-instructions.md   # becomes ~/.bob/rules/amaru.md
 ```
+
+Each bot has its own copy, because each image is built from its own
+folder. They are the same today; to change the instructions for every
+bot, change every copy. A bot can also point an agent at a different file.
 
 See [Setting the agent CLIs up](https://github.com/amaru-oss/amaru-light/blob/main/docs/configuration.md#setting-the-agent-clis-up)
 in the Amaru Light docs.
