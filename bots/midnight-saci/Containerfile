@@ -52,7 +52,7 @@ RUN git config --system credential.https://github.com.helper '' \
 # rust-toolchain.toml changes.
 ENV RUSTUP_HOME=/opt/rustup \
     CARGO_HOME=/opt/cargo \
-    PATH=/home/mini-amaru/.local/bin:/opt/cargo/bin:/usr/local/bin:/usr/bin
+    PATH=/opt/cargo/bin:$PATH
 RUN install -d -o mini-amaru -g mini-amaru /opt/rustup /opt/cargo
 
 # The daemon settings, at the path the base image's default command reads.
