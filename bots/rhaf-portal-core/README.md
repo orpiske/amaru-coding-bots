@@ -2,11 +2,11 @@
 
 Amaru Light uses Codex to work on issues labelled `needs-implementation` in
 `rhaf-ai/rhaf-portal-core`. It pushes branches to `orp-bot/rhaf-portal-core`
-and opens pull requests against `main`. The image also includes Claude Code.
+and opens pull requests against `main`. Install the agent on the Agents page.
 
 The image pins Rust 1.96.0 with Clippy and rustfmt to match the project's
-`rust-toolchain.toml` and `.github/workflows/pr-build.yml`. It uses Node.js
-22 for the agent CLIs. The bot runs the PR workflow's workspace lint
+`rust-toolchain.toml` and `.github/workflows/pr-build.yml`. The agent CLIs
+come from the Agents page. The bot runs the PR workflow's workspace lint
 inheritance, formatting, Clippy, build, test, and OpenAPI snapshot checks.
 
 GitHub Actions runs the container build and smoke test, which require a

@@ -17,9 +17,19 @@ own bot, see [below](#using-this-repository-for-your-own-bots).
 | [rhaf-portal-core](bots/rhaf-portal-core) | rhaf-ai/rhaf-portal-core | Codex | `quay.io/orpiske/amaru-light-rhaf-portal-core` |
 | [wanaku](bots/wanaku) | wanaku-ai/wanaku | Codex | `quay.io/orpiske/amaru-light-wanaku` |
 
-Every image has both Codex and Claude Code, and every `amaru.yaml` defines
-both agents; the Agent column is the one `project.yaml` uses. Switch a bot
-by setting `agent: claude` (or `codex`) in its `project.yaml`.
+No image ships an agent CLI. Every `amaru.yaml` defines Codex, Claude Code
+and IBM Bob; the Agent column is the one `project.yaml` uses. After the
+first start, open the bot's web interface, go to **Agents**, press
+**Install** for the agent the project uses (and any other you want), then
+sign it in. The CLI goes to `~/.local` on the home volume, so it survives a
+new image; **Update** upgrades it. After an install, the agent's `setup`
+steps (the plugins below) run too. Until the agent is installed and signed
+in, the bot takes no work.
+
+Switch a bot by setting `agent: claude` (or `codex`, or `bob`) in its
+`project.yaml`. Bob needs your own key: run the container with
+`-e BOB_API_KEY`. Its IBM license grants no right to redistribute it,
+which is why it is only ever installed from the Agents page.
 
 Every bot listens on 8765 inside its own container (`web.listen:
 0.0.0.0:8765`, `EXPOSE 8765`), and `make check` enforces it. To run
@@ -32,7 +42,7 @@ the ports for you.
 ```
 bots/<name>/
   Containerfile   FROM ${BASE_IMAGE} (ghcr.io/amaru-oss/amaru-light:latest)
-  amaru.yaml      daemon settings: state dir, web port, agents (codex and claude)
+  amaru.yaml      daemon settings: state dir, web port, agents (codex, claude and bob)
   project.yaml    the project: repo, fork, intake label, checks, review
   README.md       what the bot does and what its image cannot run
 ```
@@ -41,9 +51,10 @@ bots/<name>/
 
 Every bot installs the
 [AI Agents OSS Helper](https://github.com/Open-Harness-Engineering/ai-agents-oss-helper)
-plugin for both agents, with the `setup` steps of each agent in
+plugin for Codex and Claude Code, with the `setup` steps of each agent in
 `amaru.yaml`. The daemon runs them into the home volume each time the
-container starts; `podman logs amaru-light-<name>` shows a `setup` line per
+container starts, and right after the agent is installed from the Agents
+page; `podman logs amaru-light-<name>` shows a `setup` line per
 step. Each step must be safe to repeat. Add more the same way.
 
 To give an agent standing instructions for every ticket (a user-wide
@@ -57,6 +68,8 @@ agents:
     instructions: claude-instructions.md   # becomes ~/.claude/CLAUDE.md
   codex:
     instructions: codex-instructions.md    # becomes ~/.codex/AGENTS.md
+  bob:
+    instructions: bob-instructions.md      # becomes ~/.bob/rules/amaru.md
 ```
 
 See [Setting the agent CLIs up](https://github.com/amaru-oss/amaru-light/blob/main/docs/configuration.md#setting-the-agent-clis-up)

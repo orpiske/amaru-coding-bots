@@ -1,6 +1,6 @@
 # Daemon settings for the amaru-coding-bots coding bot. GH_TOKEN holds
 # orp-bot's token.
-state_dir: /home/mini-amaru/amaru   # inside the home volume, next to the Codex login
+state_dir: /home/mini-amaru/amaru   # inside the home volume, next to the agent CLIs and their logins
 poll_interval: 60s
 max_parallel: 1
 gh: gh
@@ -21,8 +21,8 @@ agents:
     setup:
       - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
       - [plugin, add, oss-helper@ai-agents-oss-helper]
-  # Every bot image has Claude Code too. To use it, set `agent: claude`
-  # in project.yaml.
+  # Install it on the web interface's Agents page, then set
+  # `agent: claude` in project.yaml to use it.
   claude:
     driver: claude
     command: claude
@@ -30,6 +30,13 @@ agents:
     setup:
       - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
       - [plugin, install, oss-helper@ai-agents-oss-helper]
+  # IBM Bob: install it on the Agents page (that accepts IBM's license),
+  # run the container with your own key as -e BOB_API_KEY, then set
+  # `agent: bob` in project.yaml to use it.
+  bob:
+    driver: bob
+    command: bob
+    args: [--accept-license]
 
 projects:
   - project.yaml
