@@ -47,9 +47,11 @@ follow the docs and say so in the pull request.
      `project.yaml` unless the issue picks another;
    - in the codex and claude agents, the `setup` steps that install the AI Agents OSS
      Helper plugin, copied from this repository's own bot
-     (`bots/amaru-coding-bots/amaru.yaml`), plus any plugin or
-     `instructions` file the issue asks for (see README.md, "Agent
-     plugins and instructions");
+     (`bots/amaru-coding-bots/amaru.yaml`), plus any plugin the issue
+     asks for (see README.md, "Agent plugins and instructions");
+   - in all three agents, `instructions: agent-instructions.md`, with
+     `agent-instructions.md` copied unchanged from
+     `bots/amaru-coding-bots/` into the new folder;
    - the same `review.reviewers`, `review.self: same_agent`;
    - `state_dir: /home/mini-amaru/amaru`, `max_parallel: 1`,
      `poll_interval: 60s`, `branch_prefix: feat/`.
@@ -75,7 +77,7 @@ follow the docs and say so in the pull request.
      replacing it), and `make check` fails on
      an image that installs one; Node.js only when the project needs it, in
      the version its CI uses; the gh Git credential helper; toolchains
-     under /opt owned by `mini-amaru`; `COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/`;
+     under /opt owned by `mini-amaru`; `COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/`;
      `USER mini-amaru`; a final RUN that prints every tool's version; and
      `EXPOSE 8765`. A header comment with the build and run commands, and a
      line saying to install and sign in the agent on the Agents page.

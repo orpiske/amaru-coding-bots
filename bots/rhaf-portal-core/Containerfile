@@ -29,7 +29,7 @@ ENV RUSTUP_HOME=/opt/rustup \
     PATH=/opt/cargo/bin:$PATH
 RUN install -d -o mini-amaru -g mini-amaru /opt/rustup /opt/cargo
 
-COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/
+COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/
 
 USER mini-amaru
 RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \

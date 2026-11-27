@@ -13,6 +13,7 @@ agents:
   codex:
     driver: codex
     command: codex
+    instructions: agent-instructions.md
     # The container is the sandbox, so Codex runs without approvals and can
     # reach the network for the build.
     args: [--dangerously-bypass-approvals-and-sandbox]
@@ -26,6 +27,7 @@ agents:
   claude:
     driver: claude
     command: claude
+    instructions: agent-instructions.md
     args: [--permission-mode, bypassPermissions]
     setup:
       - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
@@ -36,6 +38,7 @@ agents:
   bob:
     driver: bob
     command: bob
+    instructions: agent-instructions.md
     args: [--accept-license]
 
 projects:
