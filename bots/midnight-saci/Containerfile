@@ -35,12 +35,12 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         procps-ng tar xz \
     && microdnf clean all
 
-# Node.js 22, the version CI uses, Codex and Claude Code.
+# Node.js 22, the version CI uses, Codex, Claude Code and IBM Bob.
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
-    && npm install -g --no-audit --no-fund "@openai/codex" "@anthropic-ai/claude-code" \
+    && npm install -g --no-audit --no-fund "@openai/codex" "@anthropic-ai/claude-code" "@ibm/bob" \
     && npm cache clean --force
 
 # Git over HTTPS gets its credentials from gh, which reads GH_TOKEN. This is
@@ -68,7 +68,7 @@ RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \
 RUN /app/bin/amaru --version && git --version && gh --version \
     && rustup --version && rustc --version && cargo --version && cargo clippy --version \
     && cargo fmt --version && node --version && npm --version \
-    && codex --version && claude --version \
+    && codex --version && claude --version && bob --version \
     && bwrap --version && gcc --version && g++ --version && cmake --version && make --version
 
 # The web interface listens on this port (web.listen in amaru.yaml).

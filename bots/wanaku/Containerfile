@@ -32,7 +32,7 @@ COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
-    && npm install -g --no-audit --no-fund "@openai/codex" "@anthropic-ai/claude-code" "yarn@${YARN_VERSION}" \
+    && npm install -g --no-audit --no-fund "@openai/codex" "@anthropic-ai/claude-code" "@ibm/bob" "yarn@${YARN_VERSION}" \
     && npm cache clean --force
 
 RUN git config --system credential.https://github.com.helper '' \
@@ -60,7 +60,7 @@ ENV CARGO_PROFILE_DEV_DEBUG=0 \
 RUN /app/bin/amaru --version && git --version && gh --version && ripwire --version \
     && rustup --version && rustc --version && cargo --version && cargo clippy --version \
     && cargo fmt --version && cargo component --version && rustup target list --installed \
-    && node --version && npm --version && yarn --version && codex --version && claude --version \
+    && node --version && npm --version && yarn --version && codex --version && claude --version && bob --version \
     && bwrap --version && gcc --version && g++ --version && cmake --version \
     && make --version && pkg-config --modversion openssl
 

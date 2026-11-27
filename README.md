@@ -17,9 +17,21 @@ own bot, see [below](#using-this-repository-for-your-own-bots).
 | [rhaf-portal-core](bots/rhaf-portal-core) | rhaf-ai/rhaf-portal-core | Codex | `quay.io/orpiske/amaru-light-rhaf-portal-core` |
 | [wanaku](bots/wanaku) | wanaku-ai/wanaku | Codex | `quay.io/orpiske/amaru-light-wanaku` |
 
-Every image has both Codex and Claude Code, and every `amaru.yaml` defines
-both agents; the Agent column is the one `project.yaml` uses. Switch a bot
-by setting `agent: claude` (or `codex`) in its `project.yaml`.
+Every image has Codex, Claude Code and IBM Bob Shell (`bob`), and every
+`amaru.yaml` defines the Codex and Claude Code agents; the Agent column is
+the one `project.yaml` uses. Switch a bot by setting `agent: claude` (or
+`codex`) in its `project.yaml`. To use Bob, once the base image has the
+`bob` driver ([amaru-light#40](https://github.com/amaru-oss/amaru-light/pull/40)),
+add it to `amaru.yaml` and give the container your own key with
+`-e BOB_API_KEY`:
+
+```yaml
+agents:
+  bob:
+    driver: bob
+    command: bob
+    args: [--accept-license]   # accepts the IBM license for the bot
+```
 
 Every bot listens on 8765 inside its own container (`web.listen:
 0.0.0.0:8765`, `EXPOSE 8765`), and `make check` enforces it. To run

@@ -62,9 +62,9 @@ follow the docs and say so in the pull request.
    - `Containerfile`: `ARG BASE_IMAGE=ghcr.io/amaru-oss/amaru-light:latest`,
      final stage `FROM ${BASE_IMAGE}`; the toolchain with `microdnf` (the
      base is Fedora Minimal) or from official images with `COPY --from=`;
-     Node.js 22 and both agent CLIs, `@openai/codex` and
-     `@anthropic-ai/claude-code` (every image has both, whichever agent the
-     project uses); the gh Git credential helper; toolchains
+     Node.js 22 and the three agent CLIs, `@openai/codex`,
+     `@anthropic-ai/claude-code` and `@ibm/bob` (every image has all three,
+     whichever agent the project uses); the gh Git credential helper; toolchains
      under /opt owned by `mini-amaru`; `COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/`;
      `USER mini-amaru`; a final RUN that prints every tool's version; and
      `EXPOSE 8765`. A header comment with the build, run and login
