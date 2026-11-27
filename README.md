@@ -37,6 +37,31 @@ bots/<name>/
   README.md       what the bot does and what its image cannot run
 ```
 
+## Agent plugins and instructions
+
+Every bot installs the
+[AI Agents OSS Helper](https://github.com/Open-Harness-Engineering/ai-agents-oss-helper)
+plugin for both agents, with the `setup` steps of each agent in
+`amaru.yaml`. The daemon runs them into the home volume each time the
+container starts; `podman logs amaru-light-<name>` shows a `setup` line per
+step. Each step must be safe to repeat. Add more the same way.
+
+To give an agent standing instructions for every ticket (a user-wide
+`CLAUDE.md` or `AGENTS.md`, on top of the target repository's own), put
+the file in the bot's folder, add it to the `COPY ... /config/` line of
+the Containerfile, and name it in the agent's `instructions` key:
+
+```yaml
+agents:
+  claude:
+    instructions: claude-instructions.md   # becomes ~/.claude/CLAUDE.md
+  codex:
+    instructions: codex-instructions.md    # becomes ~/.codex/AGENTS.md
+```
+
+See [Setting the agent CLIs up](https://github.com/amaru-oss/amaru-light/blob/main/docs/configuration.md#setting-the-agent-clis-up)
+in the Amaru Light docs.
+
 ## Adding a bot
 
 Open an issue with the **New coding bot** template. It is labelled

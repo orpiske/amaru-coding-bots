@@ -12,10 +12,18 @@ agents:
     command: codex
     args: [--dangerously-bypass-approvals-and-sandbox]
     login_with_key: [login, --with-api-key]
+    # The AI Agents OSS Helper plugin, installed into the home volume at
+    # every start (each step is safe to repeat).
+    setup:
+      - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
+      - [plugin, add, oss-helper@ai-agents-oss-helper]
   # Also installed; set `agent: claude` in project.yaml to use it.
   claude:
     driver: claude
     command: claude
     args: [--permission-mode, bypassPermissions]
+    setup:
+      - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
+      - [plugin, install, oss-helper@ai-agents-oss-helper]
 
 projects: [project.yaml]
