@@ -44,6 +44,11 @@ follow the docs and say so in the pull request.
      `args: [--dangerously-bypass-approvals-and-sandbox]`) and `claude`
      (driver claude, `args: [--permission-mode, bypassPermissions]`), with
      `agent: codex` in `project.yaml` unless the issue picks Claude Code;
+   - in each agent, the `setup` steps that install the AI Agents OSS
+     Helper plugin, copied from this repository's own bot
+     (`bots/amaru-coding-bots/amaru.yaml`), plus any plugin or
+     `instructions` file the issue asks for (see README.md, "Agent
+     plugins and instructions");
    - the same `review.reviewers`, `review.self: same_agent`;
    - `state_dir: /home/mini-amaru/amaru`, `max_parallel: 1`,
      `poll_interval: 60s`, `branch_prefix: feat/`.

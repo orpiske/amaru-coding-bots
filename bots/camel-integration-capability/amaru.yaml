@@ -16,12 +16,20 @@ agents:
     # to inspect it, so Codex runs without approvals and without its own
     # sandbox.
     args: [--dangerously-bypass-approvals-and-sandbox]
+    # The AI Agents OSS Helper plugin, installed into the home volume at
+    # every start (each step is safe to repeat).
+    setup:
+      - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
+      - [plugin, add, oss-helper@ai-agents-oss-helper]
   # Every bot image has Claude Code too. To use it, set `agent: claude`
   # in project.yaml.
   claude:
     driver: claude
     command: claude
     args: [--permission-mode, bypassPermissions]
+    setup:
+      - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
+      - [plugin, install, oss-helper@ai-agents-oss-helper]
 
 projects:
   - project.yaml
