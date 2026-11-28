@@ -84,6 +84,11 @@ follow the docs and say so in the pull request.
      Everything must install on both x86_64 and aarch64: no downloads of a
      single-architecture binary. Pick the download by
      `uname -m` or `$TARGETARCH` when a tool has per-architecture releases.
+     For a Rust project, also install the kache build cache the way the
+     other Rust bots do (copy the block from `bots/wanaku/Containerfile`:
+     the same `KACHE_VERSION` and checksums, `/opt/kache/bin` on `PATH`,
+     and `ENV RUSTC_WRAPPER=/opt/kache/bin/kache` after the last `cargo`
+     step of the build), and the "Build cache" section of its README.
    - `amaru.yaml`: the daemon file, with `web.listen: 0.0.0.0:8765` and
      `projects: [project.yaml]`.
    - `project.yaml`: the project file, with the checks from step 2 and

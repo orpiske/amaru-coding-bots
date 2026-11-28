@@ -6,7 +6,8 @@
 #
 # The toolchain: Rust (the channel in rust-toolchain.toml) with clippy and
 # rustfmt, Node.js 22 (as CI) and the C/C++ tools that the native crates
-# (aws-lc-sys, ring, zstd-sys, bundled SQLite) compile with.
+# (aws-lc-sys, ring, zstd-sys, bundled SQLite) compile with, and kache as
+# the Rust build cache.
 #
 # Build from the root of this repository:
 #   make build BOT=midnight-saci
@@ -52,8 +53,32 @@ RUN git config --system credential.https://github.com.helper '' \
 # rust-toolchain.toml changes.
 ENV RUSTUP_HOME=/opt/rustup \
     CARGO_HOME=/opt/cargo \
-    PATH=/opt/cargo/bin:$PATH
+    PATH=/opt/cargo/bin:/opt/kache/bin:$PATH
 RUN install -d -o mini-amaru -g mini-amaru /opt/rustup /opt/cargo
+
+# kache, the build cache for Rust (and C/C++): cargo runs every rustc through
+# it (RUSTC_WRAPPER, set below), so worktrees and tickets reuse each other's
+# compiled crates. Its store and daemon live in ~/.cache/kache on the home
+# volume, so the cache outlives a new image; the first compile starts the
+# daemon. Release binaries per architecture, checked against the release's
+# .sha256 files. `kache stats` shows the hit rate.
+ARG KACHE_VERSION=2.4.0
+ARG KACHE_SHA256_X86_64=6dc5feb2fdcc982538869bc0d0f63ad0da2c8f1a2c22649e7707ff4eb4dbaab7
+ARG KACHE_SHA256_AARCH64=061e02232ba1b5f64a0bb3b8e1cdb97cd2dff12932a1522666e32671f8182aae
+RUN arch="$(uname -m)" \
+    && case "${arch}" in \
+        x86_64) sum="${KACHE_SHA256_X86_64}" ;; \
+        aarch64) sum="${KACHE_SHA256_AARCH64}" ;; \
+        *) echo "no kache release for ${arch}" >&2; exit 1 ;; \
+    esac \
+    && tarball="kache-${arch}-unknown-linux-musl.tar.gz" \
+    && curl -fsSL -o "/tmp/${tarball}" \
+        "https://github.com/kunobi-ninja/kache/releases/download/v${KACHE_VERSION}/${tarball}" \
+    && echo "${sum}  /tmp/${tarball}" | sha256sum -c - \
+    && install -d -o mini-amaru -g mini-amaru /opt/kache /opt/kache/bin \
+    && tar -xzf "/tmp/${tarball}" -C /opt/kache/bin --no-same-owner kache kache-engine \
+    && chown mini-amaru:mini-amaru /opt/kache/bin/kache /opt/kache/bin/kache-engine \
+    && rm "/tmp/${tarball}"
 
 # The daemon settings, at the path the base image's default command reads.
 COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/
@@ -64,7 +89,11 @@ RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \
         --default-toolchain "${RUST_TOOLCHAIN}" --component clippy,rustfmt \
     && rm /tmp/rustup-init.sh
 
-RUN /app/bin/amaru --version && git --version && gh --version \
+# Set only now, so the image build itself neither fills a cache nor leaves
+# one in the image's home directory.
+ENV RUSTC_WRAPPER=/opt/kache/bin/kache
+
+RUN /app/bin/amaru --version && kache --version && git --version && gh --version \
     && rustup --version && rustc --version && cargo --version && cargo clippy --version \
     && cargo fmt --version && node --version && npm --version \
     && bwrap --version && gcc --version && g++ --version && cmake --version && make --version
