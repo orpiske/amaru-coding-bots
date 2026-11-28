@@ -19,3 +19,13 @@ Podman VM. Raise the jobs on a bigger host.
 
 To run it, see [Running a bot](../../docs/running-a-bot.md). Wanaku's own
 account setup notes are in its `docs/contributing/coding-bot.md`.
+
+## Build cache
+
+The image ships [kache](https://github.com/kunobi-ninja/kache) 2.4.0, and
+`RUSTC_WRAPPER` sends every rustc call through it, so a new worktree reuses
+the crates an earlier ticket compiled. The cache lives in `~/.cache/kache`
+on the home volume and survives a new image; its daemon starts with the
+first compile. Run `podman exec <container> kache stats` to see the hit
+rate. Set `KACHE_DISABLED=1` (with `-e`) to turn it off, or `KACHE_MAX_SIZE`
+to change its disk budget (by default 5% of the disk, at least 5 GiB).
