@@ -12,16 +12,34 @@ agents:
   codex:
     driver: codex
     command: codex
+    instructions: agent-instructions.md
     # The container is the sandbox, and the bot clones the target project
     # to inspect it, so Codex runs without approvals and without its own
     # sandbox.
     args: [--dangerously-bypass-approvals-and-sandbox]
-  # Every bot image has Claude Code too. To use it, set `agent: claude`
-  # in project.yaml.
+    # The AI Agents OSS Helper plugin, installed into the home volume at
+    # every start (each step is safe to repeat).
+    setup:
+      - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
+      - [plugin, add, oss-helper@ai-agents-oss-helper]
+  # Install it on the web interface's Agents page, then set
+  # `agent: claude` in project.yaml to use it.
   claude:
     driver: claude
     command: claude
+    instructions: agent-instructions.md
     args: [--permission-mode, bypassPermissions]
+    setup:
+      - [plugin, marketplace, add, Open-Harness-Engineering/ai-agents-oss-helper]
+      - [plugin, install, oss-helper@ai-agents-oss-helper]
+  # IBM Bob: install it on the Agents page (that accepts IBM's license),
+  # run the container with your own key as -e BOB_API_KEY, then set
+  # `agent: bob` in project.yaml to use it.
+  bob:
+    driver: bob
+    command: bob
+    instructions: agent-instructions.md
+    args: [--accept-license]
 
 projects:
   - project.yaml

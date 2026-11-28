@@ -4,12 +4,12 @@
 #   podman run -d --name amaru-light-camel-integration-capability -e GH_TOKEN \
 #     -p 127.0.0.1:8765:8765 -v amaru-light-camel-integration-capability:/home/mini-amaru:U \
 #     localhost/amaru-light-camel-integration-capability:dev
-# Sign in once:
-#   podman exec -it amaru-light-camel-integration-capability codex login --device-auth
+# Then, on the web interface's Agents page, install Codex (and any other
+# agent CLI you want) and sign it in. The image does not ship the CLIs; they
+# go to ~/.local on the home volume.
 
 ARG BASE_IMAGE=ghcr.io/amaru-oss/amaru-light:latest
 
-FROM docker.io/library/node:22-trixie-slim AS node
 # Match the Temurin major version in the upstream PR workflow and Maven 3.9+
 # from CONTRIBUTING.md.
 FROM docker.io/library/maven:3.9.11-eclipse-temurin-21 AS java
@@ -20,13 +20,6 @@ USER root
 RUN microdnf install -y --setopt=install_weak_deps=0 bubblewrap zlib-ng-compat \
     && microdnf clean all
 
-COPY --from=node /usr/local/bin/node /usr/local/bin/node
-COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
-RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
-    && npm install -g --no-audit --no-fund @openai/codex @anthropic-ai/claude-code \
-    && npm cache clean --force
-
 RUN git config --system credential.https://github.com.helper '' \
     && git config --system --add credential.https://github.com.helper '!/usr/bin/gh auth git-credential'
 
@@ -36,12 +29,12 @@ ENV JAVA_HOME=/opt/java/openjdk \
     MAVEN_HOME=/opt/maven \
     PATH=/opt/java/openjdk/bin:/opt/maven/bin:$PATH
 
-COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/
+COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/
 
 USER mini-amaru
 RUN /app/bin/amaru --version && git --version && gh --version && ripwire --version \
     && java -version && javac -version && mvn --version \
-    && node --version && npm --version && codex --version && claude --version \
+    && node --version && npm --version \
     && bwrap --version
 
 EXPOSE 8765

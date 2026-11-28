@@ -7,8 +7,9 @@ never merges.
 
 - Repository: `orpiske/midnight-saci` (fork `orp-bot/midnight-saci`,
   branches `feat/...`)
-- Agent: Codex (Claude Code is installed too; set `agent: claude` in
-  `project.yaml` to switch)
+- Agent: Codex (install it on the Agents page; Claude Code and IBM Bob are
+  defined too, set `agent: claude` or `agent: bob` in `project.yaml` to
+  switch)
 - Checks:
   - `check`: `.github/check-docs.sh && make check` (docs conventions,
     `cargo fmt --check`, clippy with `-D warnings`, `cargo test`; 30m);
@@ -28,3 +29,13 @@ What the image cannot run, so it is left to Midnight Saci CI:
 - markdownlint and the lychee link check.
 
 To run it, see [Running a bot](../../docs/running-a-bot.md).
+
+## Build cache
+
+The image ships [kache](https://github.com/kunobi-ninja/kache) 2.4.0, and
+`RUSTC_WRAPPER` sends every rustc call through it, so a new worktree reuses
+the crates an earlier ticket compiled. The cache lives in `~/.cache/kache`
+on the home volume and survives a new image; its daemon starts with the
+first compile. Run `podman exec <container> kache stats` to see the hit
+rate. Set `KACHE_DISABLED=1` (with `-e`) to turn it off, or `KACHE_MAX_SIZE`
+to change its disk budget (by default 5% of the disk, at least 5 GiB).

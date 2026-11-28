@@ -6,8 +6,7 @@
 #
 # The image needs no compiler: the bot writes Containerfiles and YAML, and
 # reads the target project (cloned with git or gh) to find its toolchain. It
-# has Node.js 22 for the agent CLIs, Codex, Claude Code, and yq and
-# ShellCheck for `make check`. It has no container runtime, so it cannot build
+# has yq and ShellCheck for `make check`. It has no container runtime, so it cannot build
 # the images it writes; CI does that.
 #
 # Build it from the repository root, with this folder as the context:
@@ -21,12 +20,12 @@
 #     -v amaru-light-amaru-coding-bots:/home/mini-amaru:U \
 #     localhost/amaru-light-amaru-coding-bots:dev
 #
-# Then sign Codex in once, on the web interface's Agents page or with:
-#   podman exec -it amaru-light-amaru-coding-bots codex login --device-auth
+# Then, on the web interface's Agents page, install Codex (and any other
+# agent CLI you want) and sign it in. The image does not ship the CLIs; they
+# go to ~/.local on the home volume.
 
 ARG BASE_IMAGE=ghcr.io/amaru-oss/amaru-light:latest
 
-FROM docker.io/library/node:22-trixie-slim AS node
 
 FROM ${BASE_IMAGE}
 
@@ -39,28 +38,20 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         yq ShellCheck \
     && microdnf clean all
 
-# Node.js 22 from the official image, then the agent CLIs.
-COPY --from=node /usr/local/bin/node /usr/local/bin/node
-COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
-RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
-    && npm install -g --no-audit --no-fund @openai/codex @anthropic-ai/claude-code \
-    && npm cache clean --force
-
 # Git over HTTPS gets its credentials from gh, which reads GH_TOKEN. This is
 # what `gh auth setup-git` writes, set here so no login step is necessary.
 RUN git config --system credential.https://github.com.helper '' \
     && git config --system --add credential.https://github.com.helper '!/usr/bin/gh auth git-credential'
 
 # The daemon settings, at the path the base image's default command reads.
-COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/
+COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/
 
 USER mini-amaru
 RUN make --version | head -n 1 \
     && yq --version \
     && shellcheck --version | head -n 2 \
     && git --version && gh --version | head -n 1 \
-    && node --version && npm --version && codex --version && claude --version \
+    && node --version && npm --version \
     && /app/bin/amaru --version
 
 # The web interface listens on this port (web.listen in amaru.yaml).

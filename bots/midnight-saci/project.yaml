@@ -9,7 +9,7 @@ intake:
   # assigns only people who have access to the repository.
   labels: [needs-implementation]
 
-agent: codex
+agent: claude
 step_timeout: 45m
 
 checks:

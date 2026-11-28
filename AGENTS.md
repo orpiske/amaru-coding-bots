@@ -40,10 +40,18 @@ follow the docs and say so in the pull request.
    - folder name: the repository name, lowercase (`bots/<name>/`);
    - the same `bot_login`, fork setup with fork `<bot login>/<repo name>`;
    - intake `labels: [needs-implementation]`, no assignee;
-   - both agents defined in `amaru.yaml`: `codex` (driver codex,
-     `args: [--dangerously-bypass-approvals-and-sandbox]`) and `claude`
-     (driver claude, `args: [--permission-mode, bypassPermissions]`), with
-     `agent: codex` in `project.yaml` unless the issue picks Claude Code;
+   - three agents defined in `amaru.yaml`: `codex` (driver codex,
+     `args: [--dangerously-bypass-approvals-and-sandbox]`), `claude`
+     (driver claude, `args: [--permission-mode, bypassPermissions]`) and
+     `bob` (driver bob, `args: [--accept-license]`), with `agent: codex` in
+     `project.yaml` unless the issue picks another;
+   - in the codex and claude agents, the `setup` steps that install the AI Agents OSS
+     Helper plugin, copied from this repository's own bot
+     (`bots/amaru-coding-bots/amaru.yaml`), plus any plugin the issue
+     asks for (see README.md, "Agent plugins and instructions");
+   - in all three agents, `instructions: agent-instructions.md`, with
+     `agent-instructions.md` copied unchanged from
+     `bots/amaru-coding-bots/` into the new folder;
    - the same `review.reviewers`, `review.self: same_agent`;
    - `state_dir: /home/mini-amaru/amaru`, `max_parallel: 1`,
      `poll_interval: 60s`, `branch_prefix: feat/`.
@@ -62,15 +70,25 @@ follow the docs and say so in the pull request.
    - `Containerfile`: `ARG BASE_IMAGE=ghcr.io/amaru-oss/amaru-light:latest`,
      final stage `FROM ${BASE_IMAGE}`; the toolchain with `microdnf` (the
      base is Fedora Minimal) or from official images with `COPY --from=`;
-     Node.js 22 and both agent CLIs, `@openai/codex` and
-     `@anthropic-ai/claude-code` (every image has both, whichever agent the
-     project uses); the gh Git credential helper; toolchains
-     under /opt owned by `mini-amaru`; `COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml /config/`;
+     no agent CLI: Codex, Claude Code and IBM Bob are installed from the web
+     interface's Agents page into the home volume (the base image has
+     Node.js and npm for that, and puts `/home/mini-amaru/.local/bin` first
+     on `PATH`; extend it with `ENV PATH=/opt/.../bin:$PATH` rather than
+     replacing it), and `make check` fails on
+     an image that installs one; Node.js only when the project needs it, in
+     the version its CI uses; the gh Git credential helper; toolchains
+     under /opt owned by `mini-amaru`; `COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/`;
      `USER mini-amaru`; a final RUN that prints every tool's version; and
-     `EXPOSE 8765`. A header comment with the build, run and login
-     commands. Everything must install on both x86_64 and aarch64: no
-     downloads of a single-architecture binary. Pick the download by
+     `EXPOSE 8765`. A header comment with the build and run commands, and a
+     line saying to install and sign in the agent on the Agents page.
+     Everything must install on both x86_64 and aarch64: no downloads of a
+     single-architecture binary. Pick the download by
      `uname -m` or `$TARGETARCH` when a tool has per-architecture releases.
+     For a Rust project, also install the kache build cache the way the
+     other Rust bots do (copy the block from `bots/wanaku/Containerfile`:
+     the same `KACHE_VERSION` and checksums, `/opt/kache/bin` on `PATH`,
+     and `ENV RUSTC_WRAPPER=/opt/kache/bin/kache` after the last `cargo`
+     step of the build), and the "Build cache" section of its README.
    - `amaru.yaml`: the daemon file, with `web.listen: 0.0.0.0:8765` and
      `projects: [project.yaml]`.
    - `project.yaml`: the project file, with the checks from step 2 and
