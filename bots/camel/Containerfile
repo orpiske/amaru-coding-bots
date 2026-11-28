@@ -1,0 +1,39 @@
+# Build from the repository root:
+#   make build BOT=camel
+# Run with GH_TOKEN already set in the shell:
+#   podman run -d --init --name amaru-light-camel -e GH_TOKEN \
+#     -p 127.0.0.1:8765:8765 -v amaru-light-camel:/home/mini-amaru:U \
+#     localhost/amaru-light-camel:dev
+# Then, on the web interface's Agents page, install Claude Code (and any
+# other agent CLI you want) and sign it in. The image does not ship the
+# CLIs; they go to ~/.local on the home volume.
+
+ARG BASE_IMAGE=ghcr.io/amaru-oss/amaru-light:latest
+
+# Match the required Camel PR job (Temurin 21) and the Maven Wrapper pin.
+FROM docker.io/library/maven:3.9.16-eclipse-temurin-21 AS java
+
+FROM ${BASE_IMAGE}
+
+USER root
+RUN microdnf install -y --setopt=install_weak_deps=0 bubblewrap ncurses-libs zlib-ng-compat \
+    && microdnf clean all
+
+RUN git config --system credential.https://github.com.helper '' \
+    && git config --system --add credential.https://github.com.helper '!/usr/bin/gh auth git-credential'
+
+COPY --from=java --chown=mini-amaru:mini-amaru /opt/java/openjdk /opt/java/openjdk
+COPY --from=java --chown=mini-amaru:mini-amaru /usr/share/maven /opt/maven
+ENV JAVA_HOME=/opt/java/openjdk \
+    MAVEN_HOME=/opt/maven \
+    PATH=/opt/java/openjdk/bin:/opt/maven/bin:$PATH
+
+COPY --chown=mini-amaru:mini-amaru amaru.yaml project.yaml agent-instructions.md /config/
+
+USER mini-amaru
+RUN /app/bin/amaru --version && git --version && gh --version && ripwire --version \
+    && java -version && javac -version && mvn --version \
+    && node --version && npm --version \
+    && bwrap --version
+
+EXPOSE 8765
